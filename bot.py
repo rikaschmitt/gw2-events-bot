@@ -191,10 +191,14 @@ async def teste(interaction: discord.Interaction):
 @bot.event
 async def on_ready():
 
-    await bot.tree.sync()
+    guild = discord.Object(id=833150116582916096)
+
+    bot.tree.copy_global_to(guild=guild)
+
+    await bot.tree.sync(guild=guild)
 
     print(f"Bot conectado como {bot.user}")
-    print("Comandos sincronizados!")
+    print("Comandos sincronizados no servidor de testes!")
 
 
 # ==========================================
