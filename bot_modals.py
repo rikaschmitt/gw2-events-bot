@@ -161,7 +161,10 @@ class EventoModalBase(discord.ui.Modal):
         # PUBLICAÇÃO
         # --------------------------------------
 
-        await interaction.channel.send(
+        from bot_interactions import publicar_evento
+
+        await publicar_evento(
+            interaction=interaction,
             embed=embed
         )
 
