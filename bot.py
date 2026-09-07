@@ -243,7 +243,7 @@ class RaidModal(EventoModalBase):
 
         # Data
 
-        self.data = discord.ui.StringSelect(
+        self.data = discord.ui.Select(
             custom_id="raid_data",
             placeholder="Escolha uma data...",
             options=criar_opcoes_datas()
@@ -251,7 +251,7 @@ class RaidModal(EventoModalBase):
 
         # Horário
 
-        self.horario = discord.ui.StringSelect(
+        self.horario = discord.ui.Select(
             custom_id="raid_horario",
             placeholder="Escolha um horário...",
             options=criar_opcoes_horarios()
@@ -347,7 +347,7 @@ class FractalModal(EventoModalBase):
 
         # Data
 
-        self.data = discord.ui.StringSelect(
+        self.data = discord.ui.Select(
             custom_id="fractal_data",
             placeholder="Escolha uma data...",
             options=criar_opcoes_datas()
@@ -355,7 +355,7 @@ class FractalModal(EventoModalBase):
 
         # Horário
 
-        self.horario = discord.ui.StringSelect(
+        self.horario = discord.ui.Select(
             custom_id="fractal_horario",
             placeholder="Escolha um horário...",
             options=criar_opcoes_horarios()
@@ -451,7 +451,7 @@ class MetaModal(EventoModalBase):
 
         # Data
 
-        self.data = discord.ui.StringSelect(
+        self.data = discord.ui.Select(
             custom_id="meta_data",
             placeholder="Escolha uma data...",
             options=criar_opcoes_datas()
@@ -459,7 +459,7 @@ class MetaModal(EventoModalBase):
 
         # Horário
 
-        self.horario = discord.ui.StringSelect(
+        self.horario = discord.ui.Select(
             custom_id="meta_horario",
             placeholder="Escolha um horário...",
             options=criar_opcoes_horarios()
@@ -572,7 +572,7 @@ class HeroPointModal(EventoModalBase):
             )
         ]
 
-        self.expansao = discord.ui.StringSelect(
+        self.expansao = discord.ui.Select(
             custom_id="hero_expansao",
             placeholder="Escolha uma expansão...",
             options=expansoes
@@ -580,7 +580,7 @@ class HeroPointModal(EventoModalBase):
 
         # Data
 
-        self.data = discord.ui.StringSelect(
+        self.data = discord.ui.Select(
             custom_id="hero_data",
             placeholder="Escolha uma data...",
             options=criar_opcoes_datas()
@@ -588,7 +588,7 @@ class HeroPointModal(EventoModalBase):
 
         # Horário
 
-        self.horario = discord.ui.StringSelect(
+        self.horario = discord.ui.Select(
             custom_id="hero_horario",
             placeholder="Escolha um horário...",
             options=criar_opcoes_horarios()
@@ -683,7 +683,7 @@ class OutroModal(EventoModalBase):
 
         # Data
 
-        self.data = discord.ui.StringSelect(
+        self.data = discord.ui.Select(
             custom_id="outro_data",
             placeholder="Escolha uma data...",
             options=criar_opcoes_datas()
@@ -691,7 +691,7 @@ class OutroModal(EventoModalBase):
 
         # Horário
 
-        self.horario = discord.ui.StringSelect(
+        self.horario = discord.ui.Select(
             custom_id="outro_horario",
             placeholder="Escolha um horário...",
             options=criar_opcoes_horarios()
