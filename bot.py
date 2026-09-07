@@ -54,7 +54,7 @@ class CriarEventoModal(discord.ui.Modal, title="🐉 Criar novo evento"):
 
     tipo = discord.ui.TextInput(
         label="Tipo do evento",
-        placeholder="Ex.: Raid, Fractal, Hero Point, Meta Event...",
+        placeholder="Raid, Fractal, Hero Point, Meta Event...",
         required=True,
         max_length=50
     )
@@ -66,18 +66,11 @@ class CriarEventoModal(discord.ui.Modal, title="🐉 Criar novo evento"):
         max_length=100
     )
 
-    data = discord.ui.TextInput(
-        label="Data",
-        placeholder="Ex.: 12/09/2026",
+    data_horario = discord.ui.TextInput(
+        label="Data e horário",
+        placeholder="Ex.: 12/09/2026 às 21:30",
         required=True,
-        max_length=10
-    )
-
-    horario = discord.ui.TextInput(
-        label="Horário",
-        placeholder="Ex.: 21:30",
-        required=True,
-        max_length=5
+        max_length=30
     )
 
     vagas = discord.ui.TextInput(
@@ -89,7 +82,7 @@ class CriarEventoModal(discord.ui.Modal, title="🐉 Criar novo evento"):
 
     descricao = discord.ui.TextInput(
         label="Descrição",
-        placeholder="Informações adicionais sobre o evento...",
+        placeholder="Informações adicionais...",
         required=False,
         style=discord.TextStyle.paragraph,
         max_length=500
@@ -97,26 +90,33 @@ class CriarEventoModal(discord.ui.Modal, title="🐉 Criar novo evento"):
 
     async def on_submit(self, interaction: discord.Interaction):
 
+        try:
+            numero_vagas = int(self.vagas.value)
+
+            if numero_vagas <= 0:
+                raise ValueError
+
+        except ValueError:
+            await interaction.response.send_message(
+                "❌ O número de vagas precisa ser um número maior que zero.",
+                ephemeral=True
+            )
+            return
+
         embed = discord.Embed(
             title=f"🎮 {self.tipo.value.upper()} — {self.nome.value}",
-            description=self.descricao.value or "Sem descrição.",
+            description=self.descricao.value or "Sem descrição."
         )
 
         embed.add_field(
-            name="📅 Data",
-            value=self.data.value,
-            inline=True
-        )
-
-        embed.add_field(
-            name="🕐 Horário",
-            value=self.horario.value,
+            name="📅 Data e horário",
+            value=self.data_horario.value,
             inline=True
         )
 
         embed.add_field(
             name="👥 Vagas",
-            value=f"0/{self.vagas.value}",
+            value=f"0/{numero_vagas}",
             inline=True
         )
 
@@ -141,7 +141,7 @@ class CriarEventoModal(discord.ui.Modal, title="🐉 Criar novo evento"):
 
 
 # ==========================================
-# COMANDO /EVENTO
+# GRUPO /EVENTO
 # ==========================================
 
 class EventoGroup(app_commands.Group):
@@ -160,13 +160,28 @@ class EventoGroup(app_commands.Group):
         self,
         interaction: discord.Interaction
     ):
-
         await interaction.response.send_modal(
             CriarEventoModal()
         )
 
 
 bot.tree.add_command(EventoGroup())
+
+
+# ==========================================
+# /TESTE
+# ==========================================
+
+@bot.tree.command(
+    name="teste",
+    description="Testa se o bot está funcionando"
+)
+async def teste(interaction: discord.Interaction):
+
+    await interaction.response.send_message(
+        "🐉 **Bot funcionando!**\n"
+        "O GW2 Events está online."
+    )
 
 
 # ==========================================
@@ -180,22 +195,6 @@ async def on_ready():
 
     print(f"Bot conectado como {bot.user}")
     print("Comandos sincronizados!")
-
-
-# ==========================================
-# COMANDO /TESTE
-# ==========================================
-
-@bot.tree.command(
-    name="teste",
-    description="Testa se o bot está funcionando"
-)
-async def teste(interaction: discord.Interaction):
-
-    await interaction.response.send_message(
-        "🐉 **Bot funcionando!**\n"
-        "O GW2 Events está online."
-    )
 
 
 # ==========================================
@@ -216,6 +215,5 @@ web_thread = threading.Thread(
 )
 
 web_thread.start()
-
 
 bot.run(TOKEN)
