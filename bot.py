@@ -14,6 +14,7 @@ from flask import Flask
 # ==========================================
 
 GUILD_ID = 833150116582916096
+EVENTS_CHANNEL_ID = 1546643357718020148
 
 BRAZIL_TZ = ZoneInfo("America/Sao_Paulo")
 
