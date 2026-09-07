@@ -3,6 +3,7 @@ import discord
 from discord.ext import commands
 
 intents = discord.Intents.default()
+intents.message_content = True
 
 bot = commands.Bot(
     command_prefix="!",
@@ -12,10 +13,15 @@ bot = commands.Bot(
 
 @bot.event
 async def on_ready():
+    await bot.tree.sync()
     print(f"Bot conectado como {bot.user}")
+    print("Comandos sincronizados!")
 
 
-@bot.tree.command(name="teste", description="Testa se o bot está funcionando")
+@bot.tree.command(
+    name="teste",
+    description="Testa se o bot está funcionando"
+)
 async def teste(interaction: discord.Interaction):
     await interaction.response.send_message(
         "🐉 **Bot funcionando!**\n"
@@ -26,6 +32,8 @@ async def teste(interaction: discord.Interaction):
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 if not TOKEN:
-    raise RuntimeError("A variável DISCORD_TOKEN não foi configurada.")
+    raise RuntimeError(
+        "A variável DISCORD_TOKEN não foi configurada."
+    )
 
 bot.run(TOKEN)
