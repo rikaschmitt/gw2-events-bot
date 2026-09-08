@@ -97,25 +97,30 @@ class EventoModalBase(discord.ui.Modal):
         # EMBED DO EVENTO
         # --------------------------------------
 
+        # Cor do embed por tipo de evento.
+        cores = {
+            "⚔️ RAID": discord.Color.red(),
+            "🌀 FRACTAL": discord.Color.blue(),
+            "🐉 META": discord.Color.gold(),
+            "🗺️ HERO POINT": discord.Color.green(),
+            "✨ OUTRO": discord.Color.purple(),
+        }
+
         embed = discord.Embed(
             title=f"{tipo} • {nome}",
-            description=descricao or "Sem descrição."
+            description=(
+                f"📅 **{data_formatada}**  •  🕐 **{horario}**"
+            ),
+            color=cores.get(tipo, discord.Color.blurple())
         )
 
         embed.add_field(
-            name="📅 Data",
-            value=data_formatada,
-            inline=True
-        )
-
-        embed.add_field(
-            name="🕐 Horário",
-            value=horario,
-            inline=True
+            name="📝 Descrição",
+            value=descricao or "Sem descrição.",
+            inline=False
         )
 
         if requisitos:
-
             embed.add_field(
                 name="📋 Requisitos",
                 value=requisitos,
@@ -125,23 +130,20 @@ class EventoModalBase(discord.ui.Modal):
         embed.add_field(
             name="👤 Organizador",
             value=interaction.user.mention,
-            inline=False
+            inline=True
         )
 
         if lfg:
-
             embed.add_field(
-                name="🎮 LFG",
-                value="✅ Este evento será listado no LFG.",
-                inline=False
+                name="📢 LFG",
+                value="**ATIVO**\nEste evento será listado no LFG.",
+                inline=True
             )
-
         else:
-
             embed.add_field(
-                name="🎮 LFG",
-                value="❌ Não será listado no LFG.",
-                inline=False
+                name="📢 LFG",
+                value="Inativo",
+                inline=True
             )
 
         embed.set_footer(

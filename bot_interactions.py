@@ -61,9 +61,10 @@ async def publicar_evento(interaction, embed):
         "%H:%M"
     ).time()
 
+    description = campos.get("📝 Descrição") or embed.description or ""
     requirements = campos.get("📋 Requisitos")
 
-    lfg_value = campos.get("🎮 LFG", "")
+    lfg_value = campos.get("📢 LFG", "")
     lfg = lfg_value.startswith("✅")
 
     await criar_evento(
@@ -74,7 +75,7 @@ async def publicar_evento(interaction, embed):
         name=name,
         event_date=event_date_db,
         event_time=event_time_db,
-        description=embed.description,
+        description=description,
         requirements=requirements,
         lfg=lfg,
         organizer_discord_id=organizer.id,
@@ -147,7 +148,7 @@ class EventoParticipacaoView(discord.ui.View):
         return await buscar_evento_por_mensagem(self.evento_id)
 
     @discord.ui.button(
-        label="EU VOU",
+        label="EU VOU • 0",
         emoji="🟢",
         style=discord.ButtonStyle.success,
         custom_id="participar_evento"
@@ -178,7 +179,7 @@ class EventoParticipacaoView(discord.ui.View):
         await self.atualizar_botoes(interaction, evento["id"])
 
     @discord.ui.button(
-        label="TENHO INTERESSE",
+        label="TENHO INTERESSE • 0",
         emoji="👀",
         style=discord.ButtonStyle.primary,
         custom_id="interesse_evento"
