@@ -103,13 +103,19 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
     async def on_submit(self, interaction: discord.Interaction):
 
+        # Reconhece a interação sem criar uma mensagem visível no canal.
+        # Todas as respostas ao usuário serão enviadas por DM.
+        await interaction.response.defer(ephemeral=True)
+
         channel = interaction.guild.get_channel(LFG_CHANNEL_ID)
 
         if channel is None:
-            await interaction.response.send_message(
-                "❌ Não foi possível encontrar o canal #lfg.",
-                ephemeral=True
-            )
+            try:
+                await interaction.user.send(
+                    "❌ Não foi possível encontrar o canal #lfg."
+                )
+            except discord.Forbidden:
+                pass
             return
 
         data_selecionada = self.data_select.values[0]
@@ -184,29 +190,40 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
                 f"id={event_id}, mensagem={evento.id}"
             )
 
-            # Confirmação somente para o criador.
-            await interaction.response.send_message(
-                "✅ Evento publicado no #lfg! (somente você vê esta confirmação.)",
-                ephemeral=True
-            )
+            # Confirmação enviada exclusivamente por DM.
+            try:
+                await interaction.user.send(
+                    "✅ Evento publicado no #lfg!"
+                )
+            except discord.Forbidden:
+                print(
+                    f"Não foi possível enviar DM de confirmação "
+                    f"para {interaction.user.id}."
+                )
 
         except discord.Forbidden:
-            await interaction.response.send_message(
-                "❌ Não tenho permissão para publicar no #lfg.",
-                ephemeral=True
-            )
+            try:
+                await interaction.user.send(
+                    "❌ Não tenho permissão para publicar no #lfg."
+                )
+            except discord.Forbidden:
+                pass
 
         except discord.HTTPException:
-            await interaction.response.send_message(
-                "❌ Ocorreu um erro ao publicar o evento.",
-                ephemeral=True
-            )
+            try:
+                await interaction.user.send(
+                    "❌ Ocorreu um erro ao publicar o evento."
+                )
+            except discord.Forbidden:
+                pass
 
         except (ValueError, TypeError):
-            await interaction.response.send_message(
-                "❌ A data ou o horário do evento está em um formato inválido.",
-                ephemeral=True
-            )
+            try:
+                await interaction.user.send(
+                    "❌ A data ou o horário do evento está em um formato inválido."
+                )
+            except discord.Forbidden:
+                pass
 
         except Exception as erro:
             # O evento já pode ter sido publicado no Discord.
@@ -214,24 +231,12 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
             print(f"Erro ao salvar evento LFG no banco: {erro}")
 
             try:
-                await interaction.response.send_message(
+                await interaction.user.send(
                     "⚠️ O evento foi publicado no #lfg, mas não foi possível "
-                    "registrá-lo no banco.",
-                    ephemeral=True
+                    "registrá-lo no banco."
                 )
-            except discord.InteractionResponded:
+            except discord.Forbidden:
                 pass
-
-            await interaction.response.send_message(
-                "❌ Não tenho permissão para publicar no #lfg.",
-                ephemeral=True
-            )
-
-        except discord.HTTPException:
-            await interaction.response.send_message(
-                "❌ Ocorreu um erro ao publicar o evento.",
-                ephemeral=True
-            )
 
 
 @bot.tree.command(
@@ -369,6 +374,9 @@ class MeusEventosView(discord.ui.View):
 )
 @app_commands.guilds(discord.Object(id=GUILD_ID))
 async def meus_eventos(interaction: discord.Interaction):
+    # Reconhece o comando sem deixar mensagem visível no canal.
+    await interaction.response.defer(ephemeral=True)
+
     try:
         eventos = buscar_meus_eventos(interaction.user.id)
     except Exception as erro:
@@ -376,10 +384,12 @@ async def meus_eventos(interaction: discord.Interaction):
             f"Erro ao buscar eventos do usuário "
             f"{interaction.user.id}: {erro}"
         )
-        await interaction.response.send_message(
-            "❌ Não foi possível consultar seus eventos.",
-            ephemeral=True
-        )
+        try:
+            await interaction.user.send(
+                "❌ Não foi possível consultar seus eventos."
+            )
+        except discord.Forbidden:
+            pass
         return
 
     if not eventos:
@@ -387,10 +397,12 @@ async def meus_eventos(interaction: discord.Interaction):
             f"/meuseventos: nenhum evento futuro encontrado para "
             f"discord_user_id={interaction.user.id}"
         )
-        await interaction.response.send_message(
-            "📅 Você não tem eventos futuros ativos.",
-            ephemeral=True
-        )
+        try:
+            await interaction.user.send(
+                "📅 Você não tem eventos futuros ativos."
+            )
+        except discord.Forbidden:
+            pass
         return
 
     linhas = []
@@ -409,7 +421,7 @@ async def meus_eventos(interaction: discord.Interaction):
         )
 
     embed = discord.Embed(
-        title="📅 Meus eventos",
+        title="📅 Seus eventos ativos:",
         description="\n".join(linhas),
         color=discord.Color.blue()
     )
@@ -439,18 +451,12 @@ async def meus_eventos(interaction: discord.Interaction):
             view=view
         )
 
-        # O comando é reconhecido sem deixar conteúdo no canal.
-        await interaction.response.send_message(
-            "📬 Te enviei seus eventos por mensagem privada.",
-            ephemeral=True
-        )
+        # Não envia confirmação no canal. A própria DM contém a resposta.
 
     except discord.Forbidden:
-        # Caso o usuário tenha DMs bloqueadas para o servidor.
-        await interaction.response.send_message(
-            "❌ Não consegui te enviar uma mensagem privada. "
-            "Verifique se suas mensagens diretas estão habilitadas para este servidor.",
-            ephemeral=True
+        print(
+            f"Não foi possível enviar DM para {interaction.user.id}. "
+            "Mensagens diretas podem estar bloqueadas."
         )
 
 
