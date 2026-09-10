@@ -53,4 +53,60 @@ def salvar_gw2_id(discord_user_id, discord_username, gw2_id):
                     gw2_id
                 )
             )
+
         conn.commit()
+
+
+def salvar_evento(
+    discord_message_id,
+    discord_channel_id,
+    discord_guild_id,
+    titulo,
+    gw2_id,
+    event_date,
+    event_time,
+    descricao,
+    organizer_discord_id,
+    organizer_name,
+):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO lfg_events (
+                    discord_message_id,
+                    discord_channel_id,
+                    discord_guild_id,
+                    titulo,
+                    gw2_id,
+                    event_date,
+                    event_time,
+                    descricao,
+                    organizer_discord_id,
+                    organizer_name
+                )
+                VALUES (
+                    %s, %s, %s, %s, %s,
+                    %s, %s, %s, %s, %s
+                )
+                RETURNING id
+                """,
+                (
+                    discord_message_id,
+                    discord_channel_id,
+                    discord_guild_id,
+                    titulo,
+                    gw2_id,
+                    event_date,
+                    event_time,
+                    descricao,
+                    organizer_discord_id,
+                    organizer_name,
+                )
+            )
+
+            event_id = cur.fetchone()[0]
+
+        conn.commit()
+
+    return event_id
