@@ -201,12 +201,22 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
                     f"para {interaction.user.id}."
                 )
 
+            try:
+                await interaction.delete_original_response()
+            except discord.HTTPException:
+                pass
+
         except discord.Forbidden:
             try:
                 await interaction.user.send(
                     "❌ Não tenho permissão para publicar no #lfg."
                 )
             except discord.Forbidden:
+                pass
+
+            try:
+                await interaction.delete_original_response()
+            except discord.HTTPException:
                 pass
 
         except discord.HTTPException:
@@ -217,12 +227,22 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
             except discord.Forbidden:
                 pass
 
+            try:
+                await interaction.delete_original_response()
+            except discord.HTTPException:
+                pass
+
         except (ValueError, TypeError):
             try:
                 await interaction.user.send(
                     "❌ A data ou o horário do evento está em um formato inválido."
                 )
             except discord.Forbidden:
+                pass
+
+            try:
+                await interaction.delete_original_response()
+            except discord.HTTPException:
                 pass
 
         except Exception as erro:
@@ -390,6 +410,10 @@ async def meus_eventos(interaction: discord.Interaction):
             )
         except discord.Forbidden:
             pass
+        try:
+            await interaction.delete_original_response()
+        except discord.HTTPException:
+            pass
         return
 
     if not eventos:
@@ -402,6 +426,10 @@ async def meus_eventos(interaction: discord.Interaction):
                 "📅 Você não tem eventos futuros ativos."
             )
         except discord.Forbidden:
+            pass
+        try:
+            await interaction.delete_original_response()
+        except discord.HTTPException:
             pass
         return
 
@@ -451,13 +479,23 @@ async def meus_eventos(interaction: discord.Interaction):
             view=view
         )
 
-        # Não envia confirmação no canal. A própria DM contém a resposta.
+        # Remove completamente o "Shekyra está pensando..." do canal.
+        # A resposta da interação foi usada apenas para dar tempo ao bot
+        # de processar o comando; ela não precisa permanecer visível.
+        try:
+            await interaction.delete_original_response()
+        except discord.HTTPException:
+            pass
 
     except discord.Forbidden:
         print(
             f"Não foi possível enviar DM para {interaction.user.id}. "
             "Mensagens diretas podem estar bloqueadas."
         )
+        try:
+            await interaction.delete_original_response()
+        except discord.HTTPException:
+            pass
 
 
 @tasks.loop(minutes=5)
