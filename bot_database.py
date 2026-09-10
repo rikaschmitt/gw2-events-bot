@@ -199,3 +199,72 @@ def excluir_evento(evento_id, organizer_discord_id):
         conn.commit()
 
     return row is not None
+
+
+def buscar_eventos_expirados():
+    """
+    Retorna eventos ativos cuja data/hora já passou,
+    usando o horário de Brasília.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    discord_message_id,
+                    titulo,
+                    event_date,
+                    event_time
+                FROM lfg_events
+                WHERE status = 'active'
+                ORDER BY event_date, event_time
+                """
+            )
+
+            rows = cur.fetchall()
+
+    agora = datetime.now(TIMEZONE)
+    eventos_expirados = []
+
+    for row in rows:
+        event_date = row[3]
+        event_time = row[4]
+
+        inicio_evento = datetime.combine(
+            event_date,
+            event_time,
+            tzinfo=TIMEZONE
+        )
+
+        if inicio_evento < agora:
+            eventos_expirados.append({
+                "id": row[0],
+                "discord_message_id": row[1],
+                "titulo": row[2],
+                "event_date": event_date,
+                "event_time": event_time,
+            })
+
+    return eventos_expirados
+
+
+def marcar_evento_expirado(evento_id):
+    """
+    Marca um evento como expirado.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE lfg_events
+                SET
+                    status = 'expired',
+                    updated_at = now()
+                WHERE id = %s
+                  AND status = 'active'
+                """,
+                (evento_id,)
+            )
+
+        conn.commit()
