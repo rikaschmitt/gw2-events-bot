@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 
-from bot_database import buscar_gw2_id, salvar_gw2_id, salvar_evento
+from bot_database import buscar_gw2_id, salvar_gw2_id, salvar_evento, buscar_meus_eventos
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = 833150116582916096
@@ -247,12 +247,54 @@ async def criar_evento(interaction: discord.Interaction):
     )
 
 
+@bot.tree.command(
+    name="meuseventos",
+    description="Mostra seus próximos eventos no LFG."
+)
+@app_commands.guilds(discord.Object(id=GUILD_ID))
+async def meus_eventos(interaction: discord.Interaction):
+    eventos = buscar_meus_eventos(interaction.user.id)
+
+    if not eventos:
+        await interaction.response.send_message(
+            "📅 Você não tem eventos futuros ativos.",
+            ephemeral=True
+        )
+        return
+
+    linhas = []
+
+    for evento in eventos:
+        titulo = evento["titulo"]
+        data = evento["event_date"].strftime("%d/%m/%Y")
+        horario = evento["event_time"].strftime("%H:%M")
+        link = (
+            f"https://discord.com/channels/"
+            f"{GUILD_ID}/{LFG_CHANNEL_ID}/{evento['discord_message_id']}"
+        )
+
+        linhas.append(
+            f"• [{titulo}]({link}) - {data} às {horario}"
+        )
+
+    embed = discord.Embed(
+        title="📅 Meus eventos",
+        description="\n".join(linhas),
+        color=discord.Color.blue()
+    )
+
+    await interaction.response.send_message(
+        embed=embed,
+        ephemeral=True
+    )
+
+
 @bot.event
 async def on_ready():
     guild = discord.Object(id=GUILD_ID)
     await bot.tree.sync(guild=guild)
     print(f"Bot conectado como {bot.user}")
-    print("Comando /criarevento sincronizado.")
+    print("Comandos /criarevento e /meuseventos sincronizados.")
 
 
 app = Flask(__name__)
