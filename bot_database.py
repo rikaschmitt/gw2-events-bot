@@ -1,6 +1,6 @@
 import os
 import psycopg
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 TIMEZONE = ZoneInfo("America/Sao_Paulo")
@@ -199,6 +199,79 @@ def excluir_evento(evento_id, organizer_discord_id):
         conn.commit()
 
     return row is not None
+
+
+
+def buscar_eventos_para_lembrete():
+    """
+    Retorna eventos ativos ainda sem lembrete, cujo horário está entre agora
+    e os próximos 15 minutos, usando o horário de Brasília.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    discord_message_id,
+                    titulo,
+                    gw2_id,
+                    event_date,
+                    event_time
+                FROM lfg_events
+                WHERE status = 'active'
+                  AND reminder_sent = false
+                ORDER BY event_date, event_time
+                """
+            )
+            rows = cur.fetchall()
+
+    agora = datetime.now(TIMEZONE)
+    limite = agora + timedelta(minutes=15)
+    eventos_lembrete = []
+
+    for row in rows:
+        event_date = row[4]
+        event_time = row[5]
+
+        inicio_evento = datetime.combine(
+            event_date,
+            event_time,
+            tzinfo=TIMEZONE
+        )
+
+        if agora <= inicio_evento <= limite:
+            eventos_lembrete.append({
+                "id": row[0],
+                "discord_message_id": row[1],
+                "titulo": row[2],
+                "gw2_id": row[3],
+                "event_date": event_date,
+                "event_time": event_time,
+            })
+
+    return eventos_lembrete
+
+
+def marcar_lembrete_enviado(evento_id):
+    """
+    Marca o lembrete do evento como processado.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE lfg_events
+                SET
+                    reminder_sent = true,
+                    updated_at = now()
+                WHERE id = %s
+                  AND status = 'active'
+                """,
+                (evento_id,)
+            )
+
+        conn.commit()
 
 
 def buscar_eventos_expirados():
