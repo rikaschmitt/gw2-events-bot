@@ -123,7 +123,7 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
         embed = discord.Embed(
             description=(
                 f"# {self.titulo.value}\n"
-                f"📅 **{data_selecionada}**   🕐 **{self.horario.value}**\n\n"
+                f"📅 **{data_selecionada}**\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0🕐 **{self.horario.value}**\n\n"
                 f"> {descricao_formatada}"
             ),
             color=discord.Color.blue()
