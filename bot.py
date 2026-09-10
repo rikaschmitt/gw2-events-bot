@@ -637,7 +637,6 @@ async def verificar_lembretes_eventos():
                 try:
                     lembrete = discord.Embed(
                         description=(
-                            f"### **Lembrete de evento**\n\n"
                             f"# {titulo}\n"
                             f"📅 **{data}**\u00A0\u00A0\u00A0\u00A0"
                             f"🕐 **{horario}**\n\n"
