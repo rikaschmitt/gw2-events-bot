@@ -770,9 +770,253 @@ async def on_ready():
 
 app = Flask(__name__)
 
+app = Flask(__name__)
+
+
 @app.route("/")
 def home():
     return "Bot online!"
+
+
+@app.route("/terms")
+def terms():
+    return """
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Termos de Serviço — Shekyra</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 40px auto;
+                padding: 0 20px;
+                line-height: 1.6;
+                color: #222;
+            }
+            h1 {
+                margin-bottom: 5px;
+            }
+            h2 {
+                margin-top: 30px;
+            }
+            .date {
+                color: #666;
+            }
+        </style>
+    </head>
+    <body>
+
+        <h1>Termos de Serviço — Shekyra</h1>
+        <p class="date"><strong>Última atualização:</strong> 10 de setembro de 2026</p>
+
+        <h2>1. Sobre a Shekyra</h2>
+        <p>
+            A Shekyra é um bot desenvolvido para a comunidade
+            Sociedade do Dragão [BR], voltado à organização e
+            gerenciamento de eventos de Guild Wars 2 dentro do Discord.
+        </p>
+
+        <h2>2. Uso do serviço</h2>
+        <p>
+            A Shekyra deve ser utilizada de maneira responsável e de
+            acordo com as regras do servidor Discord da Sociedade do Dragão [BR].
+        </p>
+
+        <p>Não é permitido utilizar a Shekyra para:</p>
+
+        <ul>
+            <li>Praticar assédio, ameaças ou discriminação;</li>
+            <li>Enviar conteúdo ilegal ou malicioso;</li>
+            <li>Criar eventos com o objetivo de prejudicar outros usuários;</li>
+            <li>Utilizar o bot para spam ou abuso de suas funcionalidades;</li>
+            <li>Tentar explorar, interromper ou comprometer o funcionamento da Shekyra.</li>
+        </ul>
+
+        <h2>3. Conteúdo enviado pelos usuários</h2>
+        <p>
+            Os usuários são responsáveis pelas informações e conteúdos
+            inseridos ao criar eventos.
+        </p>
+
+        <p>
+            A administração da Sociedade do Dragão [BR] poderá remover
+            eventos ou restringir o acesso ao bot quando necessário para
+            manter a organização e segurança da comunidade.
+        </p>
+
+        <h2>4. Disponibilidade</h2>
+        <p>
+            A Shekyra é um projeto comunitário e pode sofrer interrupções,
+            falhas, manutenção ou indisponibilidade sem aviso prévio.
+        </p>
+
+        <h2>5. Discord e Guild Wars 2</h2>
+        <p>
+            A Shekyra funciona através da plataforma Discord e não é um
+            produto oficial da ArenaNet ou da NCSoft.
+        </p>
+
+        <p>
+            Guild Wars 2 e suas respectivas marcas pertencem aos seus
+            respectivos proprietários.
+        </p>
+
+        <h2>6. Alterações nos termos</h2>
+        <p>
+            Estes Termos de Serviço podem ser atualizados ou modificados
+            quando necessário. A versão mais recente estará sempre
+            disponível nesta página.
+        </p>
+
+        <h2>7. Encerramento do serviço</h2>
+        <p>
+            A Sociedade do Dragão [BR] poderá interromper, modificar ou
+            encerrar a Shekyra a qualquer momento.
+        </p>
+
+        <h2>8. Contato</h2>
+        <p>
+            Para dúvidas, sugestões ou problemas relacionados à Shekyra,
+            entre em contato com Brócolis da Sociedade do Dragão [BR]
+            através do servidor oficial da comunidade.
+        </p>
+
+        <hr>
+
+        <p>© 2026 Sociedade do Dragão [BR].</p>
+
+    </body>
+    </html>
+    """
+
+
+@app.route("/privacy")
+def privacy():
+    return """
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Política de Privacidade — Shekyra</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 800px;
+                margin: 40px auto;
+                padding: 0 20px;
+                line-height: 1.6;
+                color: #222;
+            }
+            h1 {
+                margin-bottom: 5px;
+            }
+            h2 {
+                margin-top: 30px;
+            }
+            .date {
+                color: #666;
+            }
+        </style>
+    </head>
+    <body>
+
+        <h1>Política de Privacidade — Shekyra</h1>
+        <p class="date"><strong>Última atualização:</strong> 10 de setembro de 2026</p>
+
+        <h2>1. Informações coletadas</h2>
+        <p>
+            Ao utilizar determinadas funcionalidades da Shekyra, podemos
+            armazenar:
+        </p>
+
+        <ul>
+            <li>ID do usuário no Discord;</li>
+            <li>Nome de usuário ou nome de exibição no Discord;</li>
+            <li>ID do Guild Wars 2 informado pelo próprio usuário;</li>
+            <li>Informações dos eventos criados pelo usuário;</li>
+            <li>Identificação da mensagem correspondente ao evento no Discord.</li>
+        </ul>
+
+        <h2>2. Como as informações são utilizadas</h2>
+        <p>
+            As informações são utilizadas exclusivamente para o funcionamento
+            das funcionalidades da Shekyra, incluindo criação e gerenciamento
+            de eventos, consulta de eventos, exclusão de eventos e envio de
+            lembretes relacionados aos eventos.
+        </p>
+
+        <h2>3. Mensagens privadas</h2>
+        <p>
+            Quando um usuário demonstra interesse em um evento através da
+            reação utilizada no LFG, a Shekyra poderá enviar uma mensagem
+            direta no Discord para lembrar o usuário sobre o evento.
+        </p>
+
+        <h2>4. Compartilhamento de informações</h2>
+        <p>
+            A Shekyra não vende, aluga ou comercializa informações pessoais
+            dos usuários.
+        </p>
+
+        <p>
+            Para funcionar, a Shekyra utiliza serviços de terceiros,
+            incluindo Discord, Supabase e Render.
+        </p>
+
+        <h2>5. Armazenamento e segurança</h2>
+        <p>
+            As informações são armazenadas em banco de dados utilizado pela
+            Shekyra. São adotadas medidas razoáveis para proteger essas
+            informações contra acesso, alteração ou divulgação não autorizada.
+        </p>
+
+        <h2>6. Retenção das informações</h2>
+        <p>
+            As informações são mantidas enquanto forem necessárias para o
+            funcionamento da Shekyra e de suas funcionalidades.
+        </p>
+
+        <p>
+            Eventos excluídos deixam de ser considerados eventos ativos,
+            embora algumas informações possam permanecer armazenadas por
+            questões técnicas ou de integridade do banco de dados.
+        </p>
+
+        <h2>7. Controle e exclusão</h2>
+        <p>
+            O usuário pode solicitar esclarecimentos sobre as informações
+            associadas ao seu uso da Shekyra ou solicitar sua exclusão.
+        </p>
+
+        <p>
+            Solicitações podem ser encaminhadas à administração da
+            Sociedade do Dragão [BR] através do servidor oficial da comunidade.
+        </p>
+
+        <h2>8. Alterações nesta política</h2>
+        <p>
+            Esta Política de Privacidade poderá ser atualizada quando
+            necessário. A versão mais recente estará sempre disponível
+            nesta página.
+        </p>
+
+        <h2>9. Contato</h2>
+        <p>
+            Para dúvidas ou solicitações relacionadas à privacidade,
+            entre em contato com Brócolis da Sociedade do Dragão [BR].
+        </p>
+
+        <hr>
+
+        <p>© 2026 Sociedade do Dragão [BR].</p>
+
+    </body>
+    </html>
+    """
 
 
 def iniciar_servidor():
