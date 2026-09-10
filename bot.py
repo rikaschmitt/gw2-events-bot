@@ -8,6 +8,8 @@ from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 
+from bot_database import buscar_gw2_id, salvar_gw2_id
+
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = 833150116582916096
 LFG_CHANNEL_ID = 1546643357718020148
@@ -19,7 +21,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
-    def __init__(self):
+    def __init__(self, gw2_id_salvo=None):
         super().__init__()
 
         self.titulo = discord.ui.TextInput(
@@ -36,6 +38,7 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
         self.gw2_id = discord.ui.TextInput(
             custom_id="gw2_id",
             placeholder="Ex.: Nome.1234",
+            default=gw2_id_salvo or discord.utils.MISSING,
             required=True,
             max_length=100
         )
@@ -111,6 +114,13 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
         data_selecionada = self.data_select.values[0]
 
+        # Salva o ID do GW2 do usuário para reutilizar nos próximos eventos.
+        salvar_gw2_id(
+            discord_user_id=interaction.user.id,
+            discord_username=interaction.user.display_name,
+            gw2_id=self.gw2_id.value.strip()
+        )
+
         # Formata cada linha da descrição como quote do Discord.
         descricao_formatada = self.descricao.value.replace(
             "\n",
@@ -171,7 +181,11 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 )
 @app_commands.guilds(discord.Object(id=GUILD_ID))
 async def criar_evento(interaction: discord.Interaction):
-    await interaction.response.send_modal(CriarEventoModal())
+    gw2_id_salvo = buscar_gw2_id(interaction.user.id)
+
+    await interaction.response.send_modal(
+        CriarEventoModal(gw2_id_salvo=gw2_id_salvo)
+    )
 
 
 @bot.event
