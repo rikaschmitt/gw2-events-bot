@@ -253,9 +253,24 @@ async def criar_evento(interaction: discord.Interaction):
 )
 @app_commands.guilds(discord.Object(id=GUILD_ID))
 async def meus_eventos(interaction: discord.Interaction):
-    eventos = buscar_meus_eventos(interaction.user.id)
+    try:
+        eventos = buscar_meus_eventos(interaction.user.id)
+    except Exception as erro:
+        print(
+            f"Erro ao buscar eventos do usuário "
+            f"{interaction.user.id}: {erro}"
+        )
+        await interaction.response.send_message(
+            "❌ Não foi possível consultar seus eventos.",
+            ephemeral=True
+        )
+        return
 
     if not eventos:
+        print(
+            f"/meuseventos: nenhum evento futuro encontrado para "
+            f"discord_user_id={interaction.user.id}"
+        )
         await interaction.response.send_message(
             "📅 Você não tem eventos futuros ativos.",
             ephemeral=True
