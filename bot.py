@@ -112,27 +112,42 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
         data_selecionada = self.data_select.values[0]
 
         # Formata cada linha da descrição como quote do Discord.
-        # O replace usa quebras de linha reais, para evitar que \\n
-        # apareça literalmente na mensagem.
         descricao_formatada = self.descricao.value.replace(
             "\n",
             "\n> "
         )
 
-        # Discord não permite criar uma "tag" colorida personalizada
-        # como a mostrada na referência. Por isso usamos markdown
-        # para criar uma hierarquia visual semelhante.
-        mensagem = (
-            f"# 🔎 LFG: {self.titulo.value}\n"
-            f"📅 **{data_selecionada}**   🕐 **{self.horario.value}**\n\n"
-            f"> {descricao_formatada}\n\n"
-            f"**Para entrar no squad, use:** `/sqjoin {self.gw2_id.value}`\n\n"
-            "Ficou interessado? Reaja com ✅ nesta mensagem."
+        # O Discord não permite definir tamanho de fonte em pixels.
+        # No Embed, porém, o texto segue a tipografia padrão do Discord
+        # e o título recebe automaticamente maior destaque.
+        embed = discord.Embed(
+            title=self.titulo.value,
+            description=(
+                f"📅 **{data_selecionada}**   🕐 **{self.horario.value}**\n\n"
+                f"> {descricao_formatada}"
+            ),
+            color=discord.Color.blue()
+        )
+
+        # "Author" é o elemento do Embed mais próximo do pequeno
+        # cabeçalho "Novo Evento LFG" da referência.
+        embed.set_author(
+            name="Novo Evento LFG"
+        )
+
+        embed.add_field(
+            name="Para entrar no squad",
+            value=f"`/sqjoin {self.gw2_id.value}`",
+            inline=False
+        )
+
+        embed.set_footer(
+            text="Ficou interessado? Reaja com ✅ nesta mensagem."
         )
 
 
         try:
-            evento = await channel.send(mensagem)
+            evento = await channel.send(embed=embed)
             await evento.add_reaction("✅")
 
             await interaction.response.send_message(
