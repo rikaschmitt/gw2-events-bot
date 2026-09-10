@@ -8,7 +8,16 @@ from discord import app_commands
 from discord.ext import commands, tasks
 from flask import Flask
 
-from bot_database import buscar_gw2_id, salvar_gw2_id, salvar_evento, buscar_meus_eventos, excluir_evento, buscar_eventos_expirados
+from bot_database import (
+    buscar_gw2_id,
+    salvar_gw2_id,
+    salvar_evento,
+    buscar_meus_eventos,
+    excluir_evento,
+    buscar_eventos_expirados,
+    buscar_eventos_para_lembrete,
+    marcar_lembrete_enviado,
+)
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = 833150116582916096
@@ -551,6 +560,130 @@ async def meus_eventos(interaction: discord.Interaction):
 
 
 @tasks.loop(minutes=5)
+async def verificar_lembretes_eventos():
+    """
+    A cada 5 minutos, verifica eventos que estão a até 15 minutos de começar.
+    Para cada evento, busca as reações ✅ no #lfg e envia uma DM para cada
+    participante que reagiu. Cada evento recebe o lembrete apenas uma vez.
+    """
+    try:
+        eventos = buscar_eventos_para_lembrete()
+
+        if not eventos:
+            return
+
+        channel = bot.get_channel(LFG_CHANNEL_ID)
+
+        if channel is None:
+            print("Lembretes: canal #lfg não encontrado.")
+            return
+
+        for evento in eventos:
+            event_id = evento["id"]
+            message_id = evento["discord_message_id"]
+            titulo = evento["titulo"]
+            gw2_id = evento["gw2_id"]
+            event_date = evento["event_date"]
+            event_time = evento["event_time"]
+
+            try:
+                mensagem = await channel.fetch_message(message_id)
+            except discord.NotFound:
+                print(
+                    f"Lembrete ignorado: mensagem não existe mais. "
+                    f"id={event_id}, mensagem={message_id}"
+                )
+                # Se a mensagem já não existe, não há participantes para avisar.
+                marcar_lembrete_enviado(event_id)
+                continue
+            except discord.Forbidden:
+                print(
+                    f"Sem permissão para consultar mensagem do evento "
+                    f"id={event_id}, mensagem={message_id}."
+                )
+                continue
+            except discord.HTTPException as erro:
+                print(
+                    f"Erro ao consultar mensagem do evento "
+                    f"id={event_id}: {erro}"
+                )
+                continue
+
+            participantes = set()
+
+            for reaction in mensagem.reactions:
+                if str(reaction.emoji) != "✅":
+                    continue
+
+                try:
+                    async for usuario in reaction.users():
+                        if usuario.bot:
+                            continue
+                        participantes.add(usuario)
+                except discord.HTTPException as erro:
+                    print(
+                        f"Erro ao consultar reações do evento "
+                        f"id={event_id}: {erro}"
+                    )
+
+            data = event_date.strftime("%d/%m/%Y")
+            horario = event_time.strftime("%H:%M")
+            link_evento = (
+                f"https://discord.com/channels/"
+                f"{GUILD_ID}/{LFG_CHANNEL_ID}/{message_id}"
+            )
+
+            for usuario in participantes:
+                try:
+                    lembrete = discord.Embed(
+                        description=(
+                            f"### **Lembrete de evento**\n\n"
+                            f"# {titulo}\n"
+                            f"📅 **{data}**\u00A0\u00A0\u00A0\u00A0"
+                            f"🕐 **{horario}**\n\n"
+                            f"**Entre no squad usando:** "
+                            f"`/sqjoin {gw2_id}`"
+                        ),
+                        color=discord.Color.gold()
+                    )
+
+                    lembrete.set_author(
+                        name="Lembrete de evento",
+                        url=link_evento
+                    )
+
+                    await usuario.send(embed=lembrete)
+
+                    print(
+                        f"Lembrete enviado: evento={event_id}, "
+                        f"usuario={usuario.id}, titulo={titulo}"
+                    )
+
+                except discord.Forbidden:
+                    print(
+                        f"Não foi possível enviar DM para {usuario.id} "
+                        f"no lembrete do evento {event_id}."
+                    )
+                except discord.HTTPException as erro:
+                    print(
+                        f"Erro ao enviar lembrete para {usuario.id} "
+                        f"no evento {event_id}: {erro}"
+                    )
+
+            # Mesmo que algum usuário esteja com DM bloqueada, o evento é
+            # marcado como processado para não ficar reenviando aos demais.
+            marcar_lembrete_enviado(event_id)
+
+    except Exception as erro:
+        print(f"Erro na verificação de lembretes: {erro}")
+
+
+@verificar_lembretes_eventos.before_loop
+async def antes_de_verificar_lembretes():
+    await bot.wait_until_ready()
+
+
+@tasks.loop(minutes=5)
 async def verificar_eventos_expirados():
     """
     A cada 5 minutos, verifica eventos ativos que já passaram.
@@ -568,31 +701,10 @@ async def verificar_eventos_expirados():
             print("Verificação automática: canal #lfg não encontrado.")
             return
 
-        agora = datetime.now(TIMEZONE)
-
         for evento in eventos_expirados:
             event_id = evento["id"]
             message_id = evento["discord_message_id"]
             titulo = evento["titulo"]
-
-            # Dá uma tolerância de 10 minutos após o horário marcado.
-            # Ex.: evento às 11:00:
-            # - 11:05 -> permanece no #lfg
-            # - 11:10 -> pode ser removido
-            horario_evento = datetime.combine(
-                evento["event_date"],
-                evento["event_time"],
-                tzinfo=TIMEZONE
-            )
-            horario_limite = horario_evento + timedelta(minutes=10)
-
-            if agora < horario_limite:
-                print(
-                    f"Evento ainda dentro da tolerância de 10 minutos: "
-                    f"id={event_id}, titulo={titulo}, "
-                    f"horário={horario_evento.strftime('%d/%m/%Y %H:%M')}"
-                )
-                continue
 
             try:
                 mensagem = await channel.fetch_message(message_id)
@@ -645,11 +757,15 @@ async def on_ready():
     guild = discord.Object(id=GUILD_ID)
     await bot.tree.sync(guild=guild)
 
+    if not verificar_lembretes_eventos.is_running():
+        verificar_lembretes_eventos.start()
+
     if not verificar_eventos_expirados.is_running():
         verificar_eventos_expirados.start()
 
     print(f"Bot conectado como {bot.user}")
     print("Comandos /criarevento e /meuseventos sincronizados.")
+    print("Verificação automática de lembretes ativada (a cada 5 minutos).")
     print("Verificação automática de eventos expirados ativada (a cada 5 minutos).")
 
 
