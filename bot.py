@@ -568,10 +568,31 @@ async def verificar_eventos_expirados():
             print("Verificação automática: canal #lfg não encontrado.")
             return
 
+        agora = datetime.now(TIMEZONE)
+
         for evento in eventos_expirados:
             event_id = evento["id"]
             message_id = evento["discord_message_id"]
             titulo = evento["titulo"]
+
+            # Dá uma tolerância de 10 minutos após o horário marcado.
+            # Ex.: evento às 11:00:
+            # - 11:05 -> permanece no #lfg
+            # - 11:10 -> pode ser removido
+            horario_evento = datetime.combine(
+                evento["event_date"],
+                evento["event_time"],
+                tzinfo=TIMEZONE
+            )
+            horario_limite = horario_evento + timedelta(minutes=10)
+
+            if agora < horario_limite:
+                print(
+                    f"Evento ainda dentro da tolerância de 10 minutos: "
+                    f"id={event_id}, titulo={titulo}, "
+                    f"horário={horario_evento.strftime('%d/%m/%Y %H:%M')}"
+                )
+                continue
 
             try:
                 mensagem = await channel.fetch_message(message_id)
