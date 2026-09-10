@@ -124,7 +124,7 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
             description=(
                 f"# {self.titulo.value}\n"
                 f"📅 **{data_selecionada}**\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0🕐 **{self.horario.value}**\n\n"
-                f"> {descricao_formatada}\n"
+                f"> {descricao_formatada}\n\n"
                 f"**Para entrar no squad:** `/sqjoin {self.gw2_id.value}`"
             ),
             color=discord.Color.blue()
