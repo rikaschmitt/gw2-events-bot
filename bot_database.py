@@ -1,5 +1,9 @@
 import os
 import psycopg
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
+TIMEZONE = ZoneInfo("America/Sao_Paulo")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
@@ -127,31 +131,40 @@ def buscar_meus_eventos(discord_user_id):
                 FROM lfg_events
                 WHERE organizer_discord_id = %s
                   AND status = 'active'
-                  AND (
-                      event_date > CURRENT_DATE
-                      OR (
-                          event_date = CURRENT_DATE
-                          AND event_time >= CURRENT_TIME
-                      )
-                  )
                 ORDER BY event_date, event_time
-                LIMIT 10
+                LIMIT 20
                 """,
                 (discord_user_id,)
             )
 
             rows = cur.fetchall()
 
-    return [
-        {
-            "id": row[0],
-            "discord_message_id": row[1],
-            "titulo": row[2],
-            "gw2_id": row[3],
-            "event_date": row[4],
-            "event_time": row[5],
-            "descricao": row[6],
-            "status": row[7],
-        }
-        for row in rows
-    ]
+    agora = datetime.now(TIMEZONE)
+
+    eventos = []
+
+    for row in rows:
+        event_date = row[4]
+        event_time = row[5]
+
+        # Comparamos usando o horário de Brasília, evitando diferenças
+        # entre o fuso do PostgreSQL/Supabase e o fuso do Discord.
+        inicio_evento = datetime.combine(
+            event_date,
+            event_time,
+            tzinfo=TIMEZONE
+        )
+
+        if inicio_evento >= agora:
+            eventos.append({
+                "id": row[0],
+                "discord_message_id": row[1],
+                "titulo": row[2],
+                "gw2_id": row[3],
+                "event_date": event_date,
+                "event_time": event_time,
+                "descricao": row[6],
+                "status": row[7],
+            })
+
+    return eventos
