@@ -111,14 +111,17 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
         data_selecionada = self.data_select.values[0]
 
+        descricao_formatada = self.descricao.value.replace(
+            "\\n",
+            "\\n> "
+        )
+
         mensagem = (
-            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"🔎 **LFG: {self.titulo.value}**\n\n"
-            f"`/sqjoin {self.gw2_id.value}`\n\n"
+            f"🔎 **LFG: {self.titulo.value}**\n"
             f"📅 **{data_selecionada}** às **{self.horario.value}**\n\n"
-            f"{self.descricao.value}\n\n"
-            "Interessados, reaja com ✅ nesta mensagem.\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━━"
+            f"Para entrar no squad, use: `/sqjoin {self.gw2_id.value}`\n\n"
+            f"> {descricao_formatada}\n\n"
+            "Interessados, reaja com ✅ nesta mensagem."
         )
 
         try:
