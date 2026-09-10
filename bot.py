@@ -5,10 +5,10 @@ from threading import Thread
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 from flask import Flask
 
-from bot_database import buscar_gw2_id, salvar_gw2_id, salvar_evento, buscar_meus_eventos, excluir_evento
+from bot_database import buscar_gw2_id, salvar_gw2_id, salvar_evento, buscar_meus_eventos, excluir_evento, buscar_eventos_expirados
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = 833150116582916096
@@ -438,12 +438,86 @@ async def meus_eventos(interaction: discord.Interaction):
     )
 
 
+@tasks.loop(minutes=5)
+async def verificar_eventos_expirados():
+    """
+    A cada 5 minutos, verifica eventos ativos que já passaram.
+    Remove a mensagem do #lfg e marca o evento como expired no banco.
+    """
+    try:
+        eventos_expirados = buscar_eventos_expirados()
+
+        if not eventos_expirados:
+            return
+
+        channel = bot.get_channel(LFG_CHANNEL_ID)
+
+        if channel is None:
+            print("Verificação automática: canal #lfg não encontrado.")
+            return
+
+        for evento in eventos_expirados:
+            event_id = evento["id"]
+            message_id = evento["discord_message_id"]
+            titulo = evento["titulo"]
+
+            try:
+                mensagem = await channel.fetch_message(message_id)
+                await mensagem.delete()
+                print(
+                    f"Evento expirado removido do #lfg: "
+                    f"id={event_id}, mensagem={message_id}, titulo={titulo}"
+                )
+            except discord.NotFound:
+                print(
+                    f"Mensagem do evento expirado já não existe: "
+                    f"id={event_id}, mensagem={message_id}"
+                )
+            except discord.Forbidden:
+                print(
+                    f"Sem permissão para excluir mensagem do evento expirado: "
+                    f"id={event_id}, mensagem={message_id}"
+                )
+                # Não marca como expirado se não conseguiu remover a mensagem.
+                continue
+            except discord.HTTPException as erro:
+                print(
+                    f"Erro ao excluir mensagem do evento expirado "
+                    f"id={event_id}: {erro}"
+                )
+                continue
+
+            # Só marca como expirado depois de remover a mensagem
+            # (ou descobrir que ela já não existe).
+            try:
+                from bot_database import marcar_evento_expirado
+                marcar_evento_expirado(event_id)
+            except Exception as erro:
+                print(
+                    f"Mensagem removida, mas não foi possível marcar "
+                    f"evento {event_id} como expirado: {erro}"
+                )
+
+    except Exception as erro:
+        print(f"Erro na verificação automática de eventos: {erro}")
+
+
+@verificar_eventos_expirados.before_loop
+async def antes_de_verificar_eventos():
+    await bot.wait_until_ready()
+
+
 @bot.event
 async def on_ready():
     guild = discord.Object(id=GUILD_ID)
     await bot.tree.sync(guild=guild)
+
+    if not verificar_eventos_expirados.is_running():
+        verificar_eventos_expirados.start()
+
     print(f"Bot conectado como {bot.user}")
     print("Comandos /criarevento e /meuseventos sincronizados.")
+    print("Verificação automática de eventos expirados ativada (a cada 5 minutos).")
 
 
 app = Flask(__name__)
