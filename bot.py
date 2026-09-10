@@ -125,6 +125,7 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
                 f"# {self.titulo.value}\n"
                 f"📅 **{data_selecionada}**\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0🕐 **{self.horario.value}**\n\n"
                 f"> {descricao_formatada}"
+                f"**Para entrar no squad:** `/sqjoin {self.gw2_id.value}`"
             ),
             color=discord.Color.blue()
         )
@@ -135,12 +136,6 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
         embed.set_author(
             name="Novo Evento LFG",
             url=f"https://discord.com/channels/{GUILD_ID}/{LFG_CHANNEL_ID}"
-        )
-
-        embed.add_field(
-            name="Para entrar no squad: ",
-            value=f"`/sqjoin {self.gw2_id.value}`",
-            inline=True
         )
 
         embed.set_footer(
