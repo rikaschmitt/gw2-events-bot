@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 
-from bot_database import buscar_gw2_id, salvar_gw2_id
+from bot_database import buscar_gw2_id, salvar_gw2_id, salvar_evento
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = 833150116582916096
@@ -154,15 +154,74 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
 
         try:
+            # Publica primeiro no Discord.
             evento = await channel.send(embed=embed)
             await evento.add_reaction("✅")
 
+            # Depois registra o evento no banco, usando o ID real
+            # da mensagem publicada no #lfg.
+            event_id = salvar_evento(
+                discord_message_id=evento.id,
+                discord_channel_id=channel.id,
+                discord_guild_id=interaction.guild.id,
+                titulo=self.titulo.value.strip(),
+                gw2_id=self.gw2_id.value.strip(),
+                event_date=datetime.strptime(
+                    data_selecionada,
+                    "%d/%m/%Y"
+                ).date(),
+                event_time=datetime.strptime(
+                    self.horario.value.strip(),
+                    "%H:%M"
+                ).time(),
+                descricao=self.descricao.value.strip(),
+                organizer_discord_id=interaction.user.id,
+                organizer_name=interaction.user.display_name,
+            )
+
+            print(
+                f"Evento LFG salvo no banco: "
+                f"id={event_id}, mensagem={evento.id}"
+            )
+
+            # Confirmação somente para o criador.
             await interaction.response.send_message(
                 "✅ Evento publicado no #lfg!",
                 ephemeral=True
             )
 
         except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ Não tenho permissão para publicar no #lfg.",
+                ephemeral=True
+            )
+
+        except discord.HTTPException:
+            await interaction.response.send_message(
+                "❌ Ocorreu um erro ao publicar o evento.",
+                ephemeral=True
+            )
+
+        except (ValueError, TypeError):
+            await interaction.response.send_message(
+                "❌ A data ou o horário do evento está em um formato inválido.",
+                ephemeral=True
+            )
+
+        except Exception as erro:
+            # O evento já pode ter sido publicado no Discord.
+            # Mantemos a publicação e registramos o erro no log do Render.
+            print(f"Erro ao salvar evento LFG no banco: {erro}")
+
+            try:
+                await interaction.response.send_message(
+                    "⚠️ O evento foi publicado no #lfg, mas não foi possível "
+                    "registrá-lo no banco.",
+                    ephemeral=True
+                )
+            except discord.InteractionResponded:
+                pass
+
             await interaction.response.send_message(
                 "❌ Não tenho permissão para publicar no #lfg.",
                 ephemeral=True
