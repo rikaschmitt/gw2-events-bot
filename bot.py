@@ -117,22 +117,24 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
             "\n> "
         )
 
-        # O Discord não permite definir tamanho de fonte em pixels.
-        # No Embed, porém, o texto segue a tipografia padrão do Discord
-        # e o título recebe automaticamente maior destaque.
+        # O título fica no corpo da descrição usando Markdown "#",
+        # que permite um destaque maior do que o campo "title" do Embed.
+        # O Embed continua sendo usado para manter a caixa e a borda colorida.
         embed = discord.Embed(
-            title=self.titulo.value,
             description=(
+                f"# {self.titulo.value}\n"
                 f"📅 **{data_selecionada}**   🕐 **{self.horario.value}**\n\n"
                 f"> {descricao_formatada}"
             ),
             color=discord.Color.blue()
         )
 
-        # "Author" é o elemento do Embed mais próximo do pequeno
-        # cabeçalho "Novo Evento LFG" da referência.
+        # O author continua pequeno, como na referência.
+        # O link para o próprio canal faz o texto aparecer como link
+        # quando o Discord aplica o estilo de hyperlink.
         embed.set_author(
-            name="Novo Evento LFG"
+            name="Novo Evento LFG",
+            url=f"https://discord.com/channels/{GUILD_ID}/{LFG_CHANNEL_ID}"
         )
 
         embed.add_field(
