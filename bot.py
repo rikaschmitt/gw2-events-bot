@@ -111,36 +111,28 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
         data_selecionada = self.data_select.values[0]
 
-        # Formata a descrição como quote do Discord.
+        # Formata cada linha da descrição como quote do Discord.
+        # O replace usa quebras de linha reais, para evitar que \\n
+        # apareça literalmente na mensagem.
         descricao_formatada = self.descricao.value.replace(
-            "\\n",
-            "\\n> "
+            "\n",
+            "\n> "
         )
 
-        # Publica o evento como Embed, permitindo uma apresentação
-        # mais organizada e próxima da referência enviada.
-        embed = discord.Embed(
-            title=f"🔎 LFG: {self.titulo.value}",
-            description=(
-                f"📅 **{data_selecionada}**   🕐 **{self.horario.value}**\\n\\n"
-                f"> {descricao_formatada}"
-            ),
-            color=discord.Color.gold()
-        )
-
-        embed.add_field(
-            name="Para entrar no squad",
-            value=f"`/sqjoin {self.gw2_id.value}`",
-            inline=False
-        )
-
-        embed.set_footer(
-            text="Ficou interessado? Reaja com ✅ nesta mensagem."
+        # Discord não permite criar uma "tag" colorida personalizada
+        # como a mostrada na referência. Por isso usamos markdown
+        # para criar uma hierarquia visual semelhante.
+        mensagem = (
+            f"# 🔎 LFG: {self.titulo.value}\n"
+            f"📅 **{data_selecionada}**   🕐 **{self.horario.value}**\n\n"
+            f"> {descricao_formatada}\n\n"
+            f"**Para entrar no squad, use:** `/sqjoin {self.gw2_id.value}`\n\n"
+            "Ficou interessado? Reaja com ✅ nesta mensagem."
         )
 
 
         try:
-            evento = await channel.send(embed=embed)
+            evento = await channel.send(mensagem)
             await evento.add_reaction("✅")
 
             await interaction.response.send_message(
