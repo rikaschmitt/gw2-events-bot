@@ -10,6 +10,7 @@ from flask import Flask
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = 833150116582916096
+LFG_CHANNEL_ID = 1546643357718020148
 TIMEZONE = ZoneInfo("America/Sao_Paulo")
 
 intents = discord.Intents.default()
@@ -34,7 +35,7 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
         self.gw2_id = discord.ui.TextInput(
             custom_id="gw2_id",
-            placeholder="Ex.: 1.2.3.4.5.6.7.8",
+            placeholder="Ex.: Nome.1234",
             required=True,
             max_length=100
         )
@@ -57,20 +58,17 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
             else:
                 label = data.strftime("%d/%m/%Y")
 
-            opcoes_data.append(
-                discord.SelectOption(
-                    label=label,
-                    value=data.strftime("%d/%m/%Y")
-                )
-            )
+            opcoes_data.append(discord.SelectOption(
+                label=label,
+                value=data.strftime("%d/%m/%Y")
+            ))
 
         self.data_select = discord.ui.Select(
             custom_id="data",
             placeholder="Selecione a data",
             options=opcoes_data,
             min_values=1,
-            max_values=1,
-            required=True
+            max_values=1
         )
         self.add_item(discord.ui.Label(
             text="Data",
@@ -101,19 +99,48 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
         ))
 
     async def on_submit(self, interaction: discord.Interaction):
+
+        channel = interaction.guild.get_channel(LFG_CHANNEL_ID)
+
+        if channel is None:
+            await interaction.response.send_message(
+                "❌ Não foi possível encontrar o canal #lfg.",
+                ephemeral=True
+            )
+            return
+
         data_selecionada = self.data_select.values[0]
 
-        await interaction.response.send_message(
-            (
-                "✅ **Etapa 1 funcionando!**\n\n"
-                f"**Título:** {self.titulo.value}\n"
-                f"**ID do GW2:** {self.gw2_id.value}\n"
-                f"**Data:** {data_selecionada}\n"
-                f"**Horário:** {self.horario.value}\n"
-                f"**Descrição:** {self.descricao.value}"
-            ),
-            ephemeral=True
+        mensagem = (
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"🔎 **LFG: {self.titulo.value}**\n\n"
+            f"`/sqjoin {self.gw2_id.value}`\n\n"
+            f"📅 **{data_selecionada}** às **{self.horario.value}**\n\n"
+            f"{self.descricao.value}\n\n"
+            "Interessados, reaja com ✅ nesta mensagem.\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━"
         )
+
+        try:
+            evento = await channel.send(mensagem)
+            await evento.add_reaction("✅")
+
+            await interaction.response.send_message(
+                "✅ Evento publicado no #lfg!",
+                ephemeral=True
+            )
+
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ Não tenho permissão para publicar no #lfg.",
+                ephemeral=True
+            )
+
+        except discord.HTTPException:
+            await interaction.response.send_message(
+                "❌ Ocorreu um erro ao publicar o evento.",
+                ephemeral=True
+            )
 
 
 @bot.tree.command(
