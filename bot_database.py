@@ -1,7 +1,6 @@
 import os
 import psycopg
 
-
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 if not DATABASE_URL:
@@ -53,7 +52,6 @@ def salvar_gw2_id(discord_user_id, discord_username, gw2_id):
                     gw2_id
                 )
             )
-
         conn.commit()
 
 
@@ -110,3 +108,50 @@ def salvar_evento(
         conn.commit()
 
     return event_id
+
+
+def buscar_meus_eventos(discord_user_id):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    discord_message_id,
+                    titulo,
+                    gw2_id,
+                    event_date,
+                    event_time,
+                    descricao,
+                    status
+                FROM lfg_events
+                WHERE organizer_discord_id = %s
+                  AND status = 'active'
+                  AND (
+                      event_date > CURRENT_DATE
+                      OR (
+                          event_date = CURRENT_DATE
+                          AND event_time >= CURRENT_TIME
+                      )
+                  )
+                ORDER BY event_date, event_time
+                LIMIT 10
+                """,
+                (discord_user_id,)
+            )
+
+            rows = cur.fetchall()
+
+    return [
+        {
+            "id": row[0],
+            "discord_message_id": row[1],
+            "titulo": row[2],
+            "gw2_id": row[3],
+            "event_date": row[4],
+            "event_time": row[5],
+            "descricao": row[6],
+            "status": row[7],
+        }
+        for row in rows
+    ]
