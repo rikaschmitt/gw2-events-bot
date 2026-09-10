@@ -186,7 +186,7 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
             # Confirmação somente para o criador.
             await interaction.response.send_message(
-                "✅ Evento publicado no #lfg!",
+                "✅ Evento publicado no #lfg! (somente você vê esta confirmação.)",
                 ephemeral=True
             )
 
@@ -302,7 +302,8 @@ class ExcluirEventoButton(discord.ui.Button):
                 return
 
             # Depois tenta remover a mensagem do #lfg.
-            channel = interaction.guild.get_channel(LFG_CHANNEL_ID)
+            guild = bot.get_guild(GUILD_ID)
+            channel = guild.get_channel(LFG_CHANNEL_ID) if guild else None
 
             if channel is not None:
                 try:
@@ -431,11 +432,26 @@ async def meus_eventos(interaction: discord.Interaction):
     for indice, button in enumerate(view.children, start=1):
         button.label = f"Excluir {indice}"
 
-    await interaction.response.send_message(
-        embed=embed,
-        view=view,
-        ephemeral=True
-    )
+    try:
+        # Envia a lista diretamente para a DM do usuário.
+        await interaction.user.send(
+            embed=embed,
+            view=view
+        )
+
+        # O comando é reconhecido sem deixar conteúdo no canal.
+        await interaction.response.send_message(
+            "📬 Te enviei seus eventos por mensagem privada.",
+            ephemeral=True
+        )
+
+    except discord.Forbidden:
+        # Caso o usuário tenha DMs bloqueadas para o servidor.
+        await interaction.response.send_message(
+            "❌ Não consegui te enviar uma mensagem privada. "
+            "Verifique se suas mensagens diretas estão habilitadas para este servidor.",
+            ephemeral=True
+        )
 
 
 @tasks.loop(minutes=5)
