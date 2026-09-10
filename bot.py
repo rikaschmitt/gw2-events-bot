@@ -1,59 +1,28 @@
 import os
-import threading
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import discord
-from discord.ext import commands
 from discord import app_commands
-from flask import Flask
+from discord.ext import commands
 
 
-# ==========================================
+# ============================================================
 # CONFIGURAÇÕES
-# ==========================================
+# ============================================================
+
+TOKEN = os.getenv("DISCORD_TOKEN")
 
 GUILD_ID = 833150116582916096
-EVENTS_CHANNEL_ID = 1546643357718020148
 
-BRAZIL_TZ = ZoneInfo("America/Sao_Paulo")
-
-guild = discord.Object(id=GUILD_ID)
+TIMEZONE = ZoneInfo("America/Sao_Paulo")
 
 
-# ==========================================
-# SERVIDOR WEB PARA O RENDER
-# ==========================================
-
-app = Flask(__name__)
-
-
-@app.route("/")
-def home():
-    return "🐉 GW2 Events Bot está online!"
-
-
-@app.route("/health")
-def health():
-    return "OK"
-
-
-def run_web_server():
-
-    port = int(os.environ.get("PORT", 10000))
-
-    app.run(
-        host="0.0.0.0",
-        port=port
-    )
-
-
-# ==========================================
+# ============================================================
 # BOT
-# ==========================================
+# ============================================================
 
 intents = discord.Intents.default()
-intents.message_content = True
 
 bot = commands.Bot(
     command_prefix="!",
@@ -61,188 +30,149 @@ bot = commands.Bot(
 )
 
 
-# ==========================================
-# FUNÇÕES AUXILIARES
-# ==========================================
+# ============================================================
+# MODAL — CRIAR EVENTO
+# ============================================================
 
-def criar_opcoes_datas():
+class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
-    hoje = datetime.now(BRAZIL_TZ).date()
+    titulo = discord.ui.TextInput(
+        label="Título",
+        placeholder="Ex.: Dragon's End Meta",
+        required=True,
+        max_length=100
+    )
 
-    opcoes = []
+    gw2_id = discord.ui.TextInput(
+        label="ID do GW2",
+        placeholder="Ex.: 1.2.3.4.5.6.7.8",
+        required=True,
+        max_length=100
+    )
 
-    dias_semana = [
-        "Segunda-feira",
-        "Terça-feira",
-        "Quarta-feira",
-        "Quinta-feira",
-        "Sexta-feira",
-        "Sábado",
-        "Domingo"
-    ]
+    data = discord.ui.Select(
+        placeholder="Selecione a data",
+        options=[]
+    )
 
-    for i in range(7):
+    horario = discord.ui.TextInput(
+        label="Horário",
+        placeholder="Ex.: 10:00",
+        required=True,
+        max_length=5
+    )
 
-        data = hoje + timedelta(days=i)
+    descricao = discord.ui.TextInput(
+        label="Descrição",
+        placeholder="Descreva o evento...",
+        style=discord.TextStyle.paragraph,
+        required=True,
+        max_length=1000
+    )
 
-        if i == 0:
-            descricao = "Hoje"
-        elif i == 1:
-            descricao = "Amanhã"
-        else:
-            descricao = dias_semana[data.weekday()]
+    def __init__(self):
+        super().__init__()
 
-        opcoes.append(
-            discord.SelectOption(
-                label=data.strftime("%d/%m/%Y"),
-                value=data.isoformat(),
-                description=descricao
+        hoje = datetime.now(TIMEZONE).date()
+
+        opcoes = []
+
+        for i in range(7):
+            data = hoje + timedelta(days=i)
+
+            if i == 0:
+                nome = f"Hoje — {data.strftime('%d/%m/%Y')}"
+            elif i == 1:
+                nome = f"Amanhã — {data.strftime('%d/%m/%Y')}"
+            else:
+                nome = data.strftime("%d/%m/%Y")
+
+            opcoes.append(
+                discord.SelectOption(
+                    label=nome,
+                    value=data.strftime("%d/%m/%Y")
+                )
             )
+
+        self.data.options = opcoes
+
+    async def on_submit(self, interaction: discord.Interaction):
+
+        await interaction.response.send_message(
+            (
+                "✅ **Modal recebida!**\n\n"
+                f"**Título:** {self.titulo.value}\n"
+                f"**ID do GW2:** {self.gw2_id.value}\n"
+                f"**Data:** {self.data.values[0]}\n"
+                f"**Horário:** {self.horario.value}\n"
+                f"**Descrição:** {self.descricao.value}"
+            ),
+            ephemeral=True
         )
 
-    return opcoes
 
-
-def criar_opcoes_horarios():
-
-    opcoes = []
-
-    for hora in range(8, 24):
-
-        horario = f"{hora:02d}:00"
-
-        opcoes.append(
-            discord.SelectOption(
-                label=horario,
-                value=horario
-            )
-        )
-
-    return opcoes
-
-
-
-from bot_interactions import EventoView
-
-
-# ==========================================
-# COMANDO PARA CONFIGURAR O PAINEL
-# ==========================================
+# ============================================================
+# COMANDO /CRIAR EVENTO
+# ============================================================
 
 @bot.tree.command(
-    name="configurar_eventos",
-    description="Cria o painel de criação de eventos neste canal"
+    name="criarevento",
+    description="Cria um novo evento para o canal LFG."
 )
-async def configurar_eventos(
-    interaction: discord.Interaction
-):
+@app_commands.guilds(discord.Object(id=GUILD_ID))
+async def criar_evento(interaction: discord.Interaction):
 
-    embed = discord.Embed(
-        title="🐉 Crie seu evento",
-        description=(
-            "Seja bem-vindo ao **GW2 Events**!\n\n"
-            "Aqui você pode criar uma atividade para "
-            "a comunidade participar.\n\n"
-            "**Escolha qual tipo de evento você deseja criar:**"
-        )
-    )
-
-    embed.set_footer(
-        text="GW2 Events • Comunidade Guild Wars 2"
-    )
-
-    await interaction.channel.send(
-        embed=embed,
-        view=EventoView()
-    )
-
-    await interaction.response.send_message(
-        "✅ Painel de criação de eventos criado!",
-        ephemeral=True
+    await interaction.response.send_modal(
+        CriarEventoModal()
     )
 
 
-# ==========================================
-# COMANDO /TESTE
-# ==========================================
-
-@bot.tree.command(
-    name="teste",
-    description="Testa se o bot está funcionando"
-)
-async def teste(
-    interaction: discord.Interaction
-):
-
-    await interaction.response.send_message(
-        "🐉 **Bot funcionando!**\n"
-        "O GW2 Events está online."
-    )
-
-
-# ==========================================
-# BOT ONLINE
-# ==========================================
+# ============================================================
+# INICIALIZAÇÃO
+# ============================================================
 
 @bot.event
 async def on_ready():
 
-    # Mantém os botões do painel funcionando
-    # mesmo depois de reiniciar o bot.
-    bot.add_view(
-        EventoView()
-    )
+    guild = discord.Object(id=GUILD_ID)
 
-    # Sincroniza os comandos somente
-    # no servidor de testes.
-    bot.tree.copy_global_to(
-        guild=guild
-    )
+    await bot.tree.sync(guild=guild)
 
-    await bot.tree.sync(
-        guild=guild
-    )
-
-    print(
-        f"Bot conectado como {bot.user}"
-    )
-
-    print(
-        "Comandos sincronizados no servidor de testes!"
-    )
+    print(f"Bot conectado como {bot.user}")
+    print("Comando /criarevento sincronizado.")
 
 
-# ==========================================
-# TOKEN
-# ==========================================
+# ============================================================
+# SERVIDOR HTTP PARA O RENDER
+# ============================================================
 
-TOKEN = os.getenv(
-    "DISCORD_TOKEN"
-)
+from flask import Flask
+from threading import Thread
 
-if not TOKEN:
+app = Flask(__name__)
 
-    raise RuntimeError(
-        "A variável DISCORD_TOKEN não foi configurada."
+
+@app.route("/")
+def home():
+    return "Bot online!"
+
+
+def iniciar_servidor():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(
+        host="0.0.0.0",
+        port=port
     )
 
 
-# ==========================================
-# INICIAR SERVIDOR WEB
-# ==========================================
-
-web_thread = threading.Thread(
-    target=run_web_server,
+Thread(
+    target=iniciar_servidor,
     daemon=True
-)
-
-web_thread.start()
+).start()
 
 
-# ==========================================
-# INICIAR BOT
-# ==========================================
+# ============================================================
+# INICIA O BOT
+# ============================================================
 
-bot.run(
-    TOKEN
-)
+bot.run(TOKEN)
