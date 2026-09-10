@@ -138,9 +138,9 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
         )
 
         embed.add_field(
-            name="Para entrar no squad",
+            name="Para entrar no squad: ",
             value=f"`/sqjoin {self.gw2_id.value}`",
-            inline=False
+            inline=True
         )
 
         embed.set_footer(
