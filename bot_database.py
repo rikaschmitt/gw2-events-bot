@@ -168,3 +168,34 @@ def buscar_meus_eventos(discord_user_id):
             })
 
     return eventos
+
+
+def excluir_evento(evento_id, organizer_discord_id):
+    """
+    Marca o evento como inativo.
+    Retorna True quando o evento pertence ao usuário e foi desativado.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE lfg_events
+                SET
+                    status = 'deleted',
+                    updated_at = now()
+                WHERE id = %s
+                  AND organizer_discord_id = %s
+                  AND status = 'active'
+                RETURNING id
+                """,
+                (
+                    evento_id,
+                    organizer_discord_id,
+                )
+            )
+
+            row = cur.fetchone()
+
+        conn.commit()
+
+    return row is not None
