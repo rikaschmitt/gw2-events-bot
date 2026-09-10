@@ -111,21 +111,36 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
         data_selecionada = self.data_select.values[0]
 
+        # Formata a descrição como quote do Discord.
         descricao_formatada = self.descricao.value.replace(
             "\\n",
             "\\n> "
         )
 
-        mensagem = (
-            f"🔎 **LFG: {self.titulo.value}**\n"
-            f"📅 **{data_selecionada}** às **{self.horario.value}**\n\n"
-            f"Para entrar no squad, use: `/sqjoin {self.gw2_id.value}`\n\n"
-            f"> {descricao_formatada}\n\n"
-            "Interessados, reaja com ✅ nesta mensagem."
+        # Publica o evento como Embed, permitindo uma apresentação
+        # mais organizada e próxima da referência enviada.
+        embed = discord.Embed(
+            title=f"🔎 LFG: {self.titulo.value}",
+            description=(
+                f"📅 **{data_selecionada}**   🕐 **{self.horario.value}**\\n\\n"
+                f"> {descricao_formatada}"
+            ),
+            color=discord.Color.gold()
         )
 
+        embed.add_field(
+            name="Para entrar no squad",
+            value=f"`/sqjoin {self.gw2_id.value}`",
+            inline=False
+        )
+
+        embed.set_footer(
+            text="Ficou interessado? Reaja com ✅ nesta mensagem."
+        )
+
+
         try:
-            evento = await channel.send(mensagem)
+            evento = await channel.send(embed=embed)
             await evento.add_reaction("✅")
 
             await interaction.response.send_message(
