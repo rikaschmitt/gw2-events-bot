@@ -112,7 +112,10 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
         if channel is None:
             try:
                 await interaction.user.send(
-                    "❌ Não foi possível encontrar o canal #lfg."
+                    embed=discord.Embed(
+                        description="❌ Não foi possível encontrar o canal #lfg.",
+                        color=discord.Color.red()
+                    )
                 )
             except discord.Forbidden:
                 pass
@@ -190,11 +193,17 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
                 f"id={event_id}, mensagem={evento.id}"
             )
 
-            # Confirmação enviada exclusivamente por DM.
+            # Confirmação enviada exclusivamente por DM, no mesmo
+            # padrão visual do /meuseventos.
             try:
-                await interaction.user.send(
-                    "✅ Evento publicado no #lfg!"
+                confirmacao = discord.Embed(
+                    description=(
+                        f"✅ Evento **{self.titulo.value.strip()}** "
+                        f"criado com sucesso no canal #lfg"
+                    ),
+                    color=discord.Color.green()
                 )
+                await interaction.user.send(embed=confirmacao)
             except discord.Forbidden:
                 print(
                     f"Não foi possível enviar DM de confirmação "
@@ -209,7 +218,10 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
         except discord.Forbidden:
             try:
                 await interaction.user.send(
-                    "❌ Não tenho permissão para publicar no #lfg."
+                    embed=discord.Embed(
+                        description="❌ Não tenho permissão para publicar no #lfg.",
+                        color=discord.Color.red()
+                    )
                 )
             except discord.Forbidden:
                 pass
@@ -222,7 +234,10 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
         except discord.HTTPException:
             try:
                 await interaction.user.send(
-                    "❌ Ocorreu um erro ao publicar o evento."
+                    embed=discord.Embed(
+                        description="❌ Ocorreu um erro ao publicar o evento.",
+                        color=discord.Color.red()
+                    )
                 )
             except discord.Forbidden:
                 pass
@@ -235,7 +250,10 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
         except (ValueError, TypeError):
             try:
                 await interaction.user.send(
-                    "❌ A data ou o horário do evento está em um formato inválido."
+                    embed=discord.Embed(
+                        description="❌ A data ou o horário do evento está em um formato inválido.",
+                        color=discord.Color.red()
+                    )
                 )
             except discord.Forbidden:
                 pass
@@ -252,8 +270,13 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
             try:
                 await interaction.user.send(
-                    "⚠️ O evento foi publicado no #lfg, mas não foi possível "
-                    "registrá-lo no banco."
+                    embed=discord.Embed(
+                        description=(
+                            "⚠️ O evento foi publicado no #lfg, mas não foi "
+                            "possível registrá-lo no banco."
+                        ),
+                        color=discord.Color.orange()
+                    )
                 )
             except discord.Forbidden:
                 pass
@@ -306,10 +329,14 @@ class ExcluirEventoButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         # Somente o criador do evento pode excluí-lo.
         if interaction.user.id != self.user_id:
-            await interaction.response.send_message(
-                "❌ Você não pode excluir os eventos de outra pessoa.",
-                ephemeral=True
-            )
+            try:
+                confirmacao = discord.Embed(
+                    description="❌ Você não pode excluir os eventos de outra pessoa.",
+                    color=discord.Color.red()
+                )
+                await interaction.user.send(embed=confirmacao)
+            except discord.Forbidden:
+                pass
             return
 
         try:
@@ -320,10 +347,14 @@ class ExcluirEventoButton(discord.ui.Button):
             )
 
             if not excluido:
-                await interaction.response.send_message(
-                    "❌ Esse evento não está mais disponível para exclusão.",
-                    ephemeral=True
-                )
+                try:
+                    confirmacao = discord.Embed(
+                        description="❌ Esse evento não está mais disponível para exclusão.",
+                        color=discord.Color.red()
+                    )
+                    await interaction.user.send(embed=confirmacao)
+                except discord.Forbidden:
+                    pass
                 return
 
             # Depois tenta remover a mensagem do #lfg.
@@ -346,10 +377,22 @@ class ExcluirEventoButton(discord.ui.Button):
                         f"Erro ao excluir mensagem {self.message_id}: {erro}"
                     )
 
-            await interaction.response.send_message(
-                f"🗑️ Evento **{self.titulo}** excluído.",
-                ephemeral=True
-            )
+            # Confirmação enviada exclusivamente por DM, no mesmo
+            # padrão visual do /meuseventos.
+            try:
+                confirmacao = discord.Embed(
+                    description=(
+                        f"🗑️ Evento **{self.titulo}** "
+                        f"foi excluído com sucesso!"
+                    ),
+                    color=discord.Color.red()
+                )
+                await interaction.user.send(embed=confirmacao)
+            except discord.Forbidden:
+                print(
+                    f"Não foi possível enviar DM de confirmação de exclusão "
+                    f"para {interaction.user.id}."
+                )
 
             # Desabilita todos os botões desta lista depois da exclusão.
             for item in self.view.children:
@@ -363,11 +406,14 @@ class ExcluirEventoButton(discord.ui.Button):
         except Exception as erro:
             print(f"Erro ao excluir evento {self.evento_id}: {erro}")
 
-            if not interaction.response.is_done():
-                await interaction.response.send_message(
-                    "❌ Não foi possível excluir o evento.",
-                    ephemeral=True
+            try:
+                confirmacao = discord.Embed(
+                    description="❌ Não foi possível excluir o evento.",
+                    color=discord.Color.red()
                 )
+                await interaction.user.send(embed=confirmacao)
+            except discord.Forbidden:
+                pass
 
 
 class MeusEventosView(discord.ui.View):
@@ -406,7 +452,10 @@ async def meus_eventos(interaction: discord.Interaction):
         )
         try:
             await interaction.user.send(
-                "❌ Não foi possível consultar seus eventos."
+                embed=discord.Embed(
+                    description="❌ Não foi possível consultar seus eventos.",
+                    color=discord.Color.red()
+                )
             )
         except discord.Forbidden:
             pass
@@ -423,7 +472,10 @@ async def meus_eventos(interaction: discord.Interaction):
         )
         try:
             await interaction.user.send(
-                "📅 Você não tem eventos futuros ativos."
+                embed=discord.Embed(
+                    description="📅 Você não tem eventos futuros ativos.",
+                    color=discord.Color.blue()
+                )
             )
         except discord.Forbidden:
             pass
