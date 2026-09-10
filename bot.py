@@ -8,7 +8,7 @@ from discord import app_commands
 from discord.ext import commands
 from flask import Flask
 
-from bot_database import buscar_gw2_id, salvar_gw2_id, salvar_evento, buscar_meus_eventos
+from bot_database import buscar_gw2_id, salvar_gw2_id, salvar_evento, buscar_meus_eventos, excluir_evento
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = 833150116582916096
@@ -247,6 +247,121 @@ async def criar_evento(interaction: discord.Interaction):
     )
 
 
+class ExcluirEventoView(discord.ui.View):
+    def __init__(self, eventos, user_id):
+        super().__init__(timeout=300)
+        self.user_id = user_id
+
+        for evento in eventos:
+            self.add_item(
+                ExcluirEventoButton(
+                    evento_id=evento["id"],
+                    message_id=evento["discord_message_id"],
+                    titulo=evento["titulo"],
+                    user_id=user_id
+                )
+            )
+
+
+class ExcluirEventoButton(discord.ui.Button):
+    def __init__(self, evento_id, message_id, titulo, user_id):
+        # O Discord permite no máximo 5 botões por linha.
+        # Cada botão representa um dos eventos listados.
+        super().__init__(
+            label="Excluir",
+            emoji="🗑️",
+            style=discord.ButtonStyle.danger,
+            custom_id=f"excluir_evento:{evento_id}"
+        )
+        self.evento_id = evento_id
+        self.message_id = message_id
+        self.titulo = titulo
+        self.user_id = user_id
+
+    async def callback(self, interaction: discord.Interaction):
+        # Somente o criador do evento pode excluí-lo.
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message(
+                "❌ Você não pode excluir os eventos de outra pessoa.",
+                ephemeral=True
+            )
+            return
+
+        try:
+            # Primeiro marca como inativo no banco.
+            excluido = excluir_evento(
+                evento_id=self.evento_id,
+                organizer_discord_id=self.user_id
+            )
+
+            if not excluido:
+                await interaction.response.send_message(
+                    "❌ Esse evento não está mais disponível para exclusão.",
+                    ephemeral=True
+                )
+                return
+
+            # Depois tenta remover a mensagem do #lfg.
+            channel = interaction.guild.get_channel(LFG_CHANNEL_ID)
+
+            if channel is not None:
+                try:
+                    mensagem = await channel.fetch_message(self.message_id)
+                    await mensagem.delete()
+                except discord.NotFound:
+                    pass
+                except discord.Forbidden:
+                    print(
+                        f"Sem permissão para excluir a mensagem "
+                        f"{self.message_id} do evento {self.evento_id}."
+                    )
+                except discord.HTTPException as erro:
+                    print(
+                        f"Erro ao excluir mensagem {self.message_id}: {erro}"
+                    )
+
+            await interaction.response.send_message(
+                f"🗑️ Evento **{self.titulo}** excluído.",
+                ephemeral=True
+            )
+
+            # Desabilita todos os botões desta lista depois da exclusão.
+            for item in self.view.children:
+                item.disabled = True
+
+            try:
+                await interaction.message.edit(view=self.view)
+            except discord.HTTPException:
+                pass
+
+        except Exception as erro:
+            print(f"Erro ao excluir evento {self.evento_id}: {erro}")
+
+            if not interaction.response.is_done():
+                await interaction.response.send_message(
+                    "❌ Não foi possível excluir o evento.",
+                    ephemeral=True
+                )
+
+
+class MeusEventosView(discord.ui.View):
+    def __init__(self, eventos, user_id):
+        super().__init__(timeout=300)
+        self.user_id = user_id
+
+        # Discord permite até 5 botões por Action Row.
+        # Criamos uma linha de botões por grupo de até 5 eventos.
+        for evento in eventos:
+            self.add_item(
+                ExcluirEventoButton(
+                    evento_id=evento["id"],
+                    message_id=evento["discord_message_id"],
+                    titulo=evento["titulo"],
+                    user_id=user_id
+                )
+            )
+
+
 @bot.tree.command(
     name="meuseventos",
     description="Mostra seus próximos eventos no LFG."
@@ -279,7 +394,7 @@ async def meus_eventos(interaction: discord.Interaction):
 
     linhas = []
 
-    for evento in eventos:
+    for indice, evento in enumerate(eventos, start=1):
         titulo = evento["titulo"]
         data = evento["event_date"].strftime("%d/%m/%Y")
         horario = evento["event_time"].strftime("%H:%M")
@@ -289,7 +404,7 @@ async def meus_eventos(interaction: discord.Interaction):
         )
 
         linhas.append(
-            f"• [{titulo}]({link}) - {data} às {horario}"
+            f"**{indice}.** [{titulo}]({link}) - {data} às {horario}"
         )
 
     embed = discord.Embed(
@@ -298,8 +413,27 @@ async def meus_eventos(interaction: discord.Interaction):
         color=discord.Color.blue()
     )
 
+    embed.set_footer(
+        text="Use o botão 🗑️ correspondente para excluir um evento."
+    )
+
+    # Discord aceita no máximo 25 componentes em uma View.
+    # Para manter o código simples, mostramos até 20 eventos.
+    eventos_view = eventos[:20]
+
+    view = MeusEventosView(
+        eventos=eventos_view,
+        user_id=interaction.user.id
+    )
+
+    # Os botões são adicionados em grupos de até 5 por linha.
+    # O título do botão identifica o evento pelo número.
+    for indice, button in enumerate(view.children, start=1):
+        button.label = f"Excluir {indice}"
+
     await interaction.response.send_message(
         embed=embed,
+        view=view,
         ephemeral=True
     )
 
