@@ -1,4 +1,9 @@
 import os
+import asyncio
+import base64
+import json
+import urllib.error
+import urllib.request
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from threading import Thread
@@ -17,6 +22,7 @@ from bot_database import (
     buscar_eventos_expirados,
     buscar_eventos_para_lembrete,
     marcar_lembrete_enviado,
+    buscar_eventos_ativos,
 )
 
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -26,6 +32,145 @@ TIMEZONE = ZoneInfo("America/Sao_Paulo")
 
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+
+# ---------------------------------------------------------------------------
+# Sincronização pública dos eventos com o GitHub
+# ---------------------------------------------------------------------------
+
+def sincronizar_json_github_sync():
+    """
+    Gera data/events.json a partir dos eventos ativos do Supabase e publica
+    o arquivo no repositório GitHub configurado nas variáveis de ambiente.
+
+    A função é síncrona e deve ser executada fora do event loop do Discord.
+    """
+
+    token = os.getenv("GITHUB_TOKEN")
+    repo = os.getenv("GITHUB_REPO")
+    path = os.getenv("GITHUB_JSON_PATH", "data/events.json")
+
+    if not token or not repo:
+        print("GitHub: GITHUB_TOKEN ou GITHUB_REPO não configurado.")
+        return False
+
+    try:
+        eventos = buscar_eventos_ativos()
+
+        eventos_publicos = []
+
+        for evento in eventos:
+            guild_id = evento["discord_guild_id"]
+            channel_id = evento["discord_channel_id"]
+            message_id = evento["discord_message_id"]
+
+            eventos_publicos.append({
+                "id": evento["id"],
+                "title": evento["titulo"],
+                "date": evento["event_date"].isoformat(),
+                "time": evento["event_time"].strftime("%H:%M"),
+                "description": evento["descricao"],
+                "gw2_id": evento["gw2_id"],
+                "organizer": evento["organizer_name"],
+                "discord_url": (
+                    f"https://discord.com/channels/"
+                    f"{guild_id}/{channel_id}/{message_id}"
+                ),
+            })
+
+        payload = {
+            "version": 1,
+            "updated_at": datetime.now(TIMEZONE).isoformat(timespec="seconds"),
+            "timezone": "America/Sao_Paulo",
+            "events": eventos_publicos,
+        }
+
+        novo_conteudo = json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=2,
+        ) + "\n"
+
+        api_url = f"https://api.github.com/repos/{repo}/contents/{path}"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "Shekyra-GW2-Bot",
+        }
+
+        # Consulta o arquivo atual para obter o SHA e evitar commits
+        # quando o conteúdo dos eventos não mudou.
+        sha = None
+        conteudo_atual = None
+
+        request_get = urllib.request.Request(
+            api_url,
+            headers=headers,
+            method="GET",
+        )
+
+        try:
+            with urllib.request.urlopen(request_get, timeout=20) as response:
+                dados_atuais = json.loads(response.read().decode("utf-8"))
+                sha = dados_atuais.get("sha")
+
+                conteudo_codificado = dados_atuais.get("content", "")
+                if conteudo_codificado:
+                    conteudo_atual = base64.b64decode(
+                        conteudo_codificado.replace("\n", "")
+                    ).decode("utf-8")
+
+        except urllib.error.HTTPError as erro:
+            if erro.code != 404:
+                raise
+
+        if conteudo_atual == novo_conteudo:
+            print("GitHub: events.json já está atualizado. Nenhum commit necessário.")
+            return True
+
+        conteudo_base64 = base64.b64encode(
+            novo_conteudo.encode("utf-8")
+        ).decode("ascii")
+
+        body = {
+            "message": "Atualiza eventos do LFG",
+            "content": conteudo_base64,
+        }
+
+        if sha:
+            body["sha"] = sha
+
+        request_put = urllib.request.Request(
+            api_url,
+            data=json.dumps(body).encode("utf-8"),
+            headers={
+                **headers,
+                "Content-Type": "application/json",
+            },
+            method="PUT",
+        )
+
+        with urllib.request.urlopen(request_put, timeout=20) as response:
+            resultado = json.loads(response.read().decode("utf-8"))
+
+        commit_sha = resultado.get("commit", {}).get("sha", "desconhecido")
+        print(
+            f"GitHub: events.json atualizado com sucesso. "
+            f"Eventos ativos={len(eventos_publicos)}, commit={commit_sha}"
+        )
+        return True
+
+    except Exception as erro:
+        # Falha na sincronização pública não deve derrubar o bot.
+        print(f"GitHub: erro ao sincronizar events.json: {erro}")
+        return False
+
+
+async def sincronizar_json_github():
+    """Executa a sincronização do GitHub sem bloquear o event loop do Discord."""
+    return await asyncio.to_thread(sincronizar_json_github_sync)
 
 
 class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
@@ -201,6 +346,8 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
                 f"Evento LFG salvo no banco: "
                 f"id={event_id}, mensagem={evento.id}"
             )
+
+            await sincronizar_json_github()
 
             # Confirmação enviada exclusivamente por DM, no mesmo
             # padrão visual do /meuseventos.
@@ -402,6 +549,9 @@ class ExcluirEventoButton(discord.ui.Button):
                     f"Não foi possível enviar DM de confirmação de exclusão "
                     f"para {interaction.user.id}."
                 )
+
+            # Atualiza o arquivo público depois da exclusão.
+            await sincronizar_json_github()
 
             # Desabilita todos os botões desta lista depois da exclusão.
             for item in self.view.children:
@@ -700,6 +850,8 @@ async def verificar_eventos_expirados():
             print("Verificação automática: canal #lfg não encontrado.")
             return
 
+        houve_expiracao = False
+
         for evento in eventos_expirados:
             event_id = evento["id"]
             message_id = evento["discord_message_id"]
@@ -736,11 +888,17 @@ async def verificar_eventos_expirados():
             try:
                 from bot_database import marcar_evento_expirado
                 marcar_evento_expirado(event_id)
+                houve_expiracao = True
             except Exception as erro:
                 print(
                     f"Mensagem removida, mas não foi possível marcar "
                     f"evento {event_id} como expirado: {erro}"
                 )
+
+        # Uma única atualização do JSON para todos os eventos expirados
+        # processados nesta execução.
+        if houve_expiracao:
+            await sincronizar_json_github()
 
     except Exception as erro:
         print(f"Erro na verificação automática de eventos: {erro}")
@@ -761,6 +919,9 @@ async def on_ready():
 
     if not verificar_eventos_expirados.is_running():
         verificar_eventos_expirados.start()
+
+    # Garante que o JSON público esteja sincronizado mesmo após um restart.
+    await sincronizar_json_github()
 
     print(f"Bot conectado como {bot.user}")
     print("Comandos /criarevento e /meuseventos sincronizados.")
