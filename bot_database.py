@@ -276,7 +276,7 @@ def marcar_lembrete_enviado(evento_id):
 
 def buscar_eventos_expirados():
     """
-    Retorna eventos ativos que estão há pelo menos 10 minutos
+    Retorna eventos ativos que estão há pelo menos  minutos
     além do horário marcado, usando o horário de Brasília.
     """
     with get_connection() as conn:
@@ -310,8 +310,8 @@ def buscar_eventos_expirados():
             tzinfo=TIMEZONE
         )
 
-        # O evento permanece disponível por 10 minutos após o horário marcado.
-        if inicio_evento <= agora - timedelta(minutes=10):
+        # O evento permanece disponível por 30 minutos após o horário marcado.
+        if inicio_evento <= agora - timedelta(minutes=30):
             eventos_expirados.append({
                 "id": row[0],
                 "discord_message_id": row[1],
