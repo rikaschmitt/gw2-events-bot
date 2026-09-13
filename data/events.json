@@ -1,6 +1,17 @@
 {
   "version": 1,
-  "updated_at": "2026-09-12T23:41:07-03:00",
+  "updated_at": "2026-09-12T23:42:48-03:00",
   "timezone": "America/Sao_Paulo",
-  "events": []
+  "events": [
+    {
+      "id": 24,
+      "title": "AAAAAA",
+      "date": "2026-09-13",
+      "time": "11:00",
+      "description": "asd ad adas d asd",
+      "gw2_id": "ricardo.1234",
+      "organizer": "Rick (Brócolis)",
+      "discord_url": "https://discord.com/channels/833150116582916096/1546643357718020148/1548524315190894787"
+    }
+  ]
 }
