@@ -1,18 +1,8 @@
 {
   "version": 1,
-  "updated_at": "2026-09-13T13:43:58-03:00",
+  "updated_at": "2026-09-13T14:09:47-03:00",
   "timezone": "America/Sao_Paulo",
   "events": [
-    {
-      "id": 32,
-      "title": "Teste de marcação",
-      "date": "2026-09-13",
-      "time": "13:55",
-      "description": "lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum lorem ipsum",
-      "gw2_id": "ricardo.1234",
-      "organizer": "Rick (Brócolis)",
-      "discord_url": "https://discord.com/channels/833150116582916096/1546643357718020148/1548736000950407294"
-    },
     {
       "id": 25,
       "title": "BBBBBBB",
