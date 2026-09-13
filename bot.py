@@ -56,7 +56,6 @@ def sincronizar_json_github_sync():
 
     try:
         eventos = buscar_eventos_ativos()
-
         eventos_publicos = []
 
         for evento in eventos:
@@ -78,21 +77,7 @@ def sincronizar_json_github_sync():
                 ),
             })
 
-        payload = {
-            "version": 1,
-            "updated_at": datetime.now(TIMEZONE).isoformat(timespec="seconds"),
-            "timezone": "America/Sao_Paulo",
-            "events": eventos_publicos,
-        }
-
-        novo_conteudo = json.dumps(
-            payload,
-            ensure_ascii=False,
-            indent=2,
-        ) + "\n"
-
         api_url = f"https://api.github.com/repos/{repo}/contents/{path}"
-
         headers = {
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
@@ -100,10 +85,8 @@ def sincronizar_json_github_sync():
             "User-Agent": "Shekyra-GW2-Bot",
         }
 
-        # Consulta o arquivo atual para obter o SHA e evitar commits
-        # quando o conteúdo dos eventos não mudou.
         sha = None
-        conteudo_atual = None
+        eventos_atuais = None
 
         request_get = urllib.request.Request(
             api_url,
@@ -121,22 +104,39 @@ def sincronizar_json_github_sync():
                     conteudo_atual = base64.b64decode(
                         conteudo_codificado.replace("\n", "")
                     ).decode("utf-8")
+                    try:
+                        eventos_atuais = json.loads(
+                            conteudo_atual
+                        ).get("events")
+                    except (json.JSONDecodeError, TypeError):
+                        eventos_atuais = None
 
         except urllib.error.HTTPError as erro:
             if erro.code != 404:
                 raise
 
-        if conteudo_atual == novo_conteudo:
+        if eventos_atuais == eventos_publicos:
             print("GitHub: events.json já está atualizado. Nenhum commit necessário.")
             return True
 
-        conteudo_base64 = base64.b64encode(
-            novo_conteudo.encode("utf-8")
-        ).decode("ascii")
+        payload = {
+            "version": 1,
+            "updated_at": datetime.now(TIMEZONE).isoformat(timespec="seconds"),
+            "timezone": "America/Sao_Paulo",
+            "events": eventos_publicos,
+        }
+
+        novo_conteudo = json.dumps(
+            payload,
+            ensure_ascii=False,
+            indent=2,
+        ) + "\n"
 
         body = {
             "message": "Atualiza eventos do LFG",
-            "content": conteudo_base64,
+            "content": base64.b64encode(
+                novo_conteudo.encode("utf-8")
+            ).decode("ascii"),
         }
 
         if sha:
@@ -163,7 +163,6 @@ def sincronizar_json_github_sync():
         return True
 
     except Exception as erro:
-        # Falha na sincronização pública não deve derrubar o bot.
         print(f"GitHub: erro ao sincronizar events.json: {erro}")
         return False
 
@@ -257,104 +256,93 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 
     async def on_submit(self, interaction: discord.Interaction):
 
-        # Reconhece a interação sem criar uma mensagem visível no canal.
-        # Todas as respostas ao usuário serão enviadas por DM.
         await interaction.response.defer(ephemeral=True)
-
-        channel = interaction.guild.get_channel(LFG_CHANNEL_ID)
-
-        if channel is None:
-            try:
-                await interaction.user.send(
-                    embed=discord.Embed(
-                        description="❌ Não foi possível encontrar o canal #lfg.",
-                        color=discord.Color.red()
-                    )
-                )
-            except discord.Forbidden:
-                pass
-            return
-
-        data_selecionada = self.data_select.values[0]
-
-        # Salva o ID do GW2 do usuário para reutilizar nos próximos eventos.
-        salvar_gw2_id(
-            discord_user_id=interaction.user.id,
-            discord_username=interaction.user.display_name,
-            gw2_id=self.gw2_id.value.strip()
-        )
-
-        # Formata cada linha da descrição como quote do Discord.
-        descricao_formatada = self.descricao.value.replace(
-            "\n",
-            "\n> "
-        )
-
-        # O título fica no corpo da descrição usando Markdown "#",
-        # que permite um destaque maior do que o campo "title" do Embed.
-        # O Embed continua sendo usado para manter a caixa e a borda colorida.
-        embed = discord.Embed(
-            description=(
-                f"# {self.titulo.value}\n"
-                f"📅 **{data_selecionada}**\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0🕐 **{self.horario.value}**\n\n"
-                f"> {descricao_formatada}\n\n"
-                f"**Para entrar no squad:** `/sqjoin {self.gw2_id.value}`"
-            ),
-            color=discord.Color.blue()
-        )
-
-        # O author continua pequeno, como na referência.
-        # O link para o próprio canal faz o texto aparecer como link
-        # quando o Discord aplica o estilo de hyperlink.
-        embed.set_author(
-            name="Novo Evento LFG",
-            url=f"https://discord.com/channels/{GUILD_ID}/{LFG_CHANNEL_ID}"
-        )
-
-        embed.set_footer(
-            text="Ficou interessado? Reaja com ✅ nesta mensagem."
-        )
-
+        evento_publicado = None
 
         try:
-            # Publica primeiro no Discord.
-            evento = await channel.send(embed=embed)
-            await evento.add_reaction("✅")
+            guild = interaction.guild
+            if guild is None:
+                raise RuntimeError("A interação não pertence a um servidor Discord.")
 
-            # Depois registra o evento no banco, usando o ID real
-            # da mensagem publicada no #lfg.
+            channel = guild.get_channel(LFG_CHANNEL_ID)
+            if channel is None:
+                raise RuntimeError(
+                    f"Canal #lfg não encontrado. LFG_CHANNEL_ID={LFG_CHANNEL_ID}"
+                )
+
+            data_selecionada = self.data_select.values[0]
+            event_date = datetime.strptime(
+                data_selecionada, "%d/%m/%Y"
+            ).date()
+            event_time = datetime.strptime(
+                self.horario.value.strip(), "%H:%M"
+            ).time()
+
+            gw2_id = self.gw2_id.value.strip()
+            titulo = self.titulo.value.strip()
+            descricao = self.descricao.value.strip()
+
+            if not gw2_id:
+                raise ValueError("O ID do GW2 não pode ficar vazio.")
+            if not titulo:
+                raise ValueError("O título não pode ficar vazio.")
+            if not descricao:
+                raise ValueError("A descrição não pode ficar vazia.")
+
+            salvar_gw2_id(
+                discord_user_id=interaction.user.id,
+                discord_username=interaction.user.display_name,
+                gw2_id=gw2_id,
+            )
+
+            descricao_formatada = descricao.replace("\n", "\n> ")
+
+            embed = discord.Embed(
+                description=(
+                    f"# {titulo}\n"
+                    f"📅 **{data_selecionada}**\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0"
+                    f"🕐 **{event_time.strftime('%H:%M')}**\n\n"
+                    f"> {descricao_formatada}\n\n"
+                    f"**Para entrar no squad:** `/sqjoin {gw2_id}`"
+                ),
+                color=discord.Color.blue()
+            )
+
+            embed.set_author(
+                name="Novo Evento LFG",
+                url=f"https://discord.com/channels/{GUILD_ID}/{LFG_CHANNEL_ID}"
+            )
+            embed.set_footer(
+                text="Ficou interessado? Reaja com ✅ nesta mensagem."
+            )
+
+            evento_publicado = await channel.send(embed=embed)
+            await evento_publicado.add_reaction("✅")
+
             event_id = salvar_evento(
-                discord_message_id=evento.id,
+                discord_message_id=evento_publicado.id,
                 discord_channel_id=channel.id,
-                discord_guild_id=interaction.guild.id,
-                titulo=self.titulo.value.strip(),
-                gw2_id=self.gw2_id.value.strip(),
-                event_date=datetime.strptime(
-                    data_selecionada,
-                    "%d/%m/%Y"
-                ).date(),
-                event_time=datetime.strptime(
-                    self.horario.value.strip(),
-                    "%H:%M"
-                ).time(),
-                descricao=self.descricao.value.strip(),
+                discord_guild_id=guild.id,
+                titulo=titulo,
+                gw2_id=gw2_id,
+                event_date=event_date,
+                event_time=event_time,
+                descricao=descricao,
                 organizer_discord_id=interaction.user.id,
                 organizer_name=interaction.user.display_name,
             )
 
             print(
                 f"Evento LFG salvo no banco: "
-                f"id={event_id}, mensagem={evento.id}"
+                f"id={event_id}, mensagem={evento_publicado.id}"
             )
 
             await sincronizar_json_github()
 
-            # Confirmação enviada exclusivamente por DM, no mesmo
-            # padrão visual do /meuseventos.
             try:
                 confirmacao = discord.Embed(
                     description=(
-                        f"✅ Evento **{self.titulo.value.strip()}** "
+                        f"✅ Evento **{titulo}** "
                         f"criado com sucesso no canal #lfg"
                     ),
                     color=discord.Color.green()
@@ -371,7 +359,8 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
             except discord.HTTPException:
                 pass
 
-        except discord.Forbidden:
+        except discord.Forbidden as erro:
+            print(f"Erro de permissão ao criar evento: {erro}")
             try:
                 await interaction.user.send(
                     embed=discord.Embed(
@@ -381,29 +370,29 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
                 )
             except discord.Forbidden:
                 pass
-
             try:
                 await interaction.delete_original_response()
             except discord.HTTPException:
                 pass
 
-        except discord.HTTPException:
+        except discord.HTTPException as erro:
+            print(f"Erro HTTP do Discord ao criar evento: {erro}")
             try:
                 await interaction.user.send(
                     embed=discord.Embed(
-                        description="❌ Ocorreu um erro ao publicar o evento.",
+                        description="❌ Ocorreu um erro no Discord ao publicar o evento.",
                         color=discord.Color.red()
                     )
                 )
             except discord.Forbidden:
                 pass
-
             try:
                 await interaction.delete_original_response()
             except discord.HTTPException:
                 pass
 
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as erro:
+            print(f"Dados inválidos ao criar evento: {erro}")
             try:
                 await interaction.user.send(
                     embed=discord.Embed(
@@ -413,28 +402,51 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
                 )
             except discord.Forbidden:
                 pass
-
             try:
                 await interaction.delete_original_response()
             except discord.HTTPException:
                 pass
 
         except Exception as erro:
-            # O evento já pode ter sido publicado no Discord.
-            # Mantemos a publicação e registramos o erro no log do Render.
-            print(f"Erro ao salvar evento LFG no banco: {erro}")
+            import traceback
+            print("========== ERRO AO CRIAR EVENTO ==========")
+            traceback.print_exc()
+            print("===========================================")
+
+            # Evita deixar uma mensagem no #lfg que não esteja registrada no banco.
+            if evento_publicado is not None:
+                try:
+                    await evento_publicado.delete()
+                    print(
+                        f"Mensagem órfã removida após falha no cadastro: "
+                        f"{evento_publicado.id}"
+                    )
+                except (
+                    discord.Forbidden,
+                    discord.NotFound,
+                    discord.HTTPException
+                ) as erro_delete:
+                    print(
+                        f"Não foi possível remover mensagem órfã "
+                        f"{evento_publicado.id}: {erro_delete}"
+                    )
 
             try:
                 await interaction.user.send(
                     embed=discord.Embed(
                         description=(
-                            "⚠️ O evento foi publicado no #lfg, mas não foi "
-                            "possível registrá-lo no banco."
+                            "❌ Não foi possível criar o evento. "
+                            "Verifique o log do bot para identificar o erro."
                         ),
-                        color=discord.Color.orange()
+                        color=discord.Color.red()
                     )
                 )
             except discord.Forbidden:
+                pass
+
+            try:
+                await interaction.delete_original_response()
+            except discord.HTTPException:
                 pass
 
 
@@ -444,11 +456,24 @@ class CriarEventoModal(discord.ui.Modal, title="Criar evento"):
 )
 @app_commands.guilds(discord.Object(id=GUILD_ID))
 async def criar_evento(interaction: discord.Interaction):
-    gw2_id_salvo = buscar_gw2_id(interaction.user.id)
+    try:
+        gw2_id_salvo = buscar_gw2_id(interaction.user.id)
 
-    await interaction.response.send_modal(
-        CriarEventoModal(gw2_id_salvo=gw2_id_salvo)
-    )
+        await interaction.response.send_modal(
+            CriarEventoModal(gw2_id_salvo=gw2_id_salvo)
+        )
+
+    except Exception as erro:
+        import traceback
+        print("========== ERRO AO ABRIR /CRIAREVENTO ==========")
+        traceback.print_exc()
+        print("=================================================")
+
+        if not interaction.response.is_done():
+            await interaction.response.send_message(
+                "❌ Não foi possível abrir o formulário de criação de evento.",
+                ephemeral=True
+            )
 
 
 class ExcluirEventoView(discord.ui.View):
