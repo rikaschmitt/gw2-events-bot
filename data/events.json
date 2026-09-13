@@ -1,8 +1,18 @@
 {
   "version": 1,
-  "updated_at": "2026-09-13T00:39:30-03:00",
+  "updated_at": "2026-09-13T02:15:40-03:00",
   "timezone": "America/Sao_Paulo",
   "events": [
+    {
+      "id": 31,
+      "title": "Meta train",
+      "date": "2026-09-13",
+      "time": "02:20",
+      "description": "Teste evento",
+      "gw2_id": "HILL.6581",
+      "organizer": "HILL",
+      "discord_url": "https://discord.com/channels/833150116582916096/1546643357718020148/1548562786177654877"
+    },
     {
       "id": 29,
       "title": "FFFFFF",
