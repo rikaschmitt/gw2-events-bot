@@ -1,18 +1,8 @@
 {
   "version": 1,
-  "updated_at": "2026-09-13T17:58:31-03:00",
+  "updated_at": "2026-09-13T19:09:13-03:00",
   "timezone": "America/Sao_Paulo",
   "events": [
-    {
-      "id": 34,
-      "title": "Lady Gaga",
-      "date": "2026-09-13",
-      "time": "18:35",
-      "description": "aa asd asd asd asd asd asd",
-      "gw2_id": "ricardo.1234",
-      "organizer": "Rick (Brócolis)",
-      "discord_url": "https://discord.com/channels/833150116582916096/1546643357718020148/1548800064061964399"
-    },
     {
       "id": 26,
       "title": "CCCCC",
