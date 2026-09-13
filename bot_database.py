@@ -341,3 +341,51 @@ def marcar_evento_expirado(evento_id):
             )
 
         conn.commit()
+
+def buscar_eventos_ativos():
+    """
+    Retorna todos os eventos ativos com os dados necessários para
+    gerar o events.json público consumido pelo módulo do Blish HUD.
+    """
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    discord_message_id,
+                    discord_channel_id,
+                    discord_guild_id,
+                    titulo,
+                    gw2_id,
+                    event_date,
+                    event_time,
+                    descricao,
+                    organizer_name,
+                    status
+                FROM lfg_events
+                WHERE status = 'active'
+                ORDER BY event_date, event_time
+                """
+            )
+
+            rows = cur.fetchall()
+
+    eventos = []
+
+    for row in rows:
+        eventos.append({
+            "id": row[0],
+            "discord_message_id": row[1],
+            "discord_channel_id": row[2],
+            "discord_guild_id": row[3],
+            "titulo": row[4],
+            "gw2_id": row[5],
+            "event_date": row[6],
+            "event_time": row[7],
+            "descricao": row[8],
+            "organizer_name": row[9],
+            "status": row[10],
+        })
+
+    return eventos
