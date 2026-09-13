@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-09-13T00:34:45-03:00",
+  "updated_at": "2026-09-13T00:35:01-03:00",
   "timezone": "America/Sao_Paulo",
   "events": [
     {
@@ -32,6 +32,16 @@
       "gw2_id": "ricardo.1234",
       "organizer": "Rick (Brócolis)",
       "discord_url": "https://discord.com/channels/833150116582916096/1546643357718020148/1548529175961403444"
+    },
+    {
+      "id": 28,
+      "title": "EEEEEE",
+      "date": "2026-09-14",
+      "time": "17:20",
+      "description": "asdada ad  asd",
+      "gw2_id": "ricardo.1234",
+      "organizer": "Rick (Brócolis)",
+      "discord_url": "https://discord.com/channels/833150116582916096/1546643357718020148/1548537459757944943"
     },
     {
       "id": 27,
